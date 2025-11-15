@@ -1,11 +1,10 @@
 {
-  "name": "Parts Finder — Appliance Repair",
-  "short_name": "PartsFinder",
+  "name": "Parts Finder • Liquid Glass",
+  "short_name": "Parts Finder",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#05060a",
-  "theme_color": "#05060a",
-  "description": "Liquid glass iOS 26 style meta-search for appliance repair parts.",
+  "background_color": "#020615",
+  "theme_color": "#050816",
   "icons": [
     {
       "src": "/icons/icon-192.png",
