@@ -21,21 +21,52 @@ const first = (...vals) => {
   return '';
 };
 
-// PN из текста: стараемся вытащить именно код с цифрами (DLE4970W, FGIP2468UF0A и т.п.)
+// PN из текста (запасной вариант)
 const pnText = (s) => {
   const txt = String(s || '').toUpperCase();
 
-  // все "слова" из букв/цифр/дефисов длиной 3+
+  // отсекаем явно лишние слова
+  const STOP = new Set([
+    'HTTPS', 'HTTP', 'AMAZON',
+    'DRYER', 'WASHER', 'DISHWASHER',
+    'REFRIGERATOR', 'FRIDGE',
+    'RANGE', 'STOVE', 'OVEN', 'COOKTOP',
+    'MODEL', 'PARTS'
+  ]);
+
   const tokens = txt.match(/[A-Z0-9\-]{3,}/g) || [];
   if (!tokens.length) return '';
 
-  // в приоритете — токены, где есть хотя бы одна цифра
+  // сначала — токены с цифрами и не из стоп-списка
+  const withDigit = tokens.filter(x => /\d/.test(x) && !STOP.has(x));
+  if (withDigit.length) return withDigit[0];
+
+  // потом — любые с цифрами
+  const anyWithDigit = tokens.filter(x => /\d/.test(x));
+  if (anyWithDigit.length) return anyWithDigit[0];
+
+  // в крайнем случае — первый не из стоп-списка
+  const nonStop = tokens.filter(x => !STOP.has(x));
+  return nonStop[0] || tokens[0];
+};
+
+// PN из URL (Sears, модели и т.п.)
+const pnFromLink = (url) => {
+  const u = String(url || '').toUpperCase();
+
+  // 1) сначала пробуем длинные числовые PN (5304509451)
+  let m = u.match(/(?:^|[^\d])(\d{7,})\b/);
+  if (m) return m[1];
+
+  // 2) затем берём последний сегмент пути, типа "LG-DLE4970W-DRYER-PARTS"
+  const last = u.split('?')[0].split('/').pop() || '';
+  const tokens = last.split(/[^A-Z0-9]+/).filter(Boolean);
+
+  // приоритет — токен с цифрой и не из стоп-списка
   const withDigit = tokens.filter(x => /\d/.test(x));
+  if (withDigit.length) return withDigit[0];
 
-  // берём первый токен с цифрой, если есть, иначе просто первый
-  const candidate = withDigit[0] || tokens[0];
-
-  return (candidate || '').replace(/^[#\s]+/, '');
+  return '';
 };
 
 const pnFromLink = url => {
