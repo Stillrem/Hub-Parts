@@ -1,10 +1,11 @@
 {
-  "name": "Parts Hub — Поиск запчастей",
-  "short_name": "PartsHub",
+  "name": "Parts Finder — Appliance Repair",
+  "short_name": "PartsFinder",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#05060a",
   "theme_color": "#05060a",
+  "description": "Liquid glass iOS 26 style meta-search for appliance repair parts.",
   "icons": [
     {
       "src": "/icons/icon-192.png",
