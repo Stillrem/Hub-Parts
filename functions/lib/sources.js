@@ -1,5 +1,5 @@
 // functions/lib/sources.js
-import * as cheerio from 'cheerio';
+const cheerio = require('cheerio');
 
 const BASE_SEARS  = 'https://www.searspartsdirect.com';
 const BASE_RC     = 'https://www.repairclinic.com';
@@ -141,7 +141,7 @@ function rcFromNextData($){
 }
 
 /* ===== SOURCES ===== */
-export const sources = [
+const sources = [
   /* --- SearsPartsDirect --- */
   {
     name: 'SearsPartsDirect',
@@ -779,3 +779,5 @@ export const sources = [
     }
   }
 ];
+
+module.exports = { sources };
