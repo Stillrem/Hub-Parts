@@ -1,12 +1,17 @@
 // api/search.js
-import { sources } from '../lib/sources.js';
+const { sources } = require('./sources');
 
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
   try {
-    const { q = '', sources: srcParam = '' } = req.query;
+    if (req.method !== 'GET') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
 
-    const query = q.trim();
-    if (!query) {
+    const q = (req.query.q || '').toString().trim();
+    const srcParam = (req.query.sources || '').toString();
+
+    if (!q) {
       res.status(400).json({ error: 'Missing q param' });
       return;
     }
@@ -15,40 +20,45 @@ export default async function handler(req, res) {
       ? srcParam.split(',').map(s => s.trim()).filter(Boolean)
       : sources.map(s => s.name);
 
-    const activeSources = sources.filter(s => selectedNames.includes(s.name));
+    const activeSources = sources.filter(s =>
+      selectedNames.includes(s.name)
+    );
 
-    const fetchPromises = activeSources.map(async (src) => {
-      const url = src.searchUrl(query);
+    if (!activeSources.length) {
+      res.status(400).json({ error: 'No valid sources selected' });
+      return;
+    }
+
+    const tasks = activeSources.map(async src => {
+      const url = src.searchUrl(q);
       try {
         const response = await fetch(url, {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (PartsFinderBot; +https://stillfusion.parts)'
+            'User-Agent':
+              'Mozilla/5.0 (PartsFinderBot; StillFusion)'
           }
         });
         const html = await response.text();
-        const items = await src.parser(html, query);
+        const items = await src.parser(html, q);
         return { source: src.name, items };
-      } catch (err) {
-        console.error('Error for source', src.name, err);
+      } catch (e) {
+        console.error('Error scraping', src.name, e);
         return { source: src.name, items: [] };
       }
     });
 
-    const resultsBySource = await Promise.all(fetchPromises);
+    const results = await Promise.all(tasks);
 
-    const flatItems = [];
-    for (const { source, items } of resultsBySource) {
-      for (const it of items) {
-        flatItems.push({ source, ...it });
+    const flat = [];
+    for (const { source, items } of results) {
+      for (const it of items || []) {
+        flat.push({ source, ...it });
       }
     }
 
-    res.status(200).json({
-      query,
-      items: flatItems
-    });
-  } catch (err) {
-    console.error('Fatal error in /api/search', err);
+    res.status(200).json({ query: q, items: flat });
+  } catch (e) {
+    console.error('Fatal /api/search error', e);
     res.status(500).json({ error: 'Internal server error' });
   }
-}
+};
