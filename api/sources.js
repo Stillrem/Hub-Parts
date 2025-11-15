@@ -480,13 +480,16 @@ const sources = [
         );
 
         let imgRaw =
-          el$.find('img.product-image-photo').attr('src') ||
-          el$.find('img').attr('data-src') ||
-          el$.find('img').attr('srcset') ||
-          el$.find('img').attr('src') ||
-          '';
+  el$.find('img.product-image-photo').attr('src') ||
+  el$.find('img.product-image-photo').attr('data-src') ||
+  el$.find('img').attr('data-src') ||
+  el$.find('img').attr('data-original') ||
+  el$.find('img').attr('data-srcset') ||
+  el$.find('img').attr('srcset') ||
+  el$.find('img').attr('src') ||
+  '';
 
-        const image = absUrl(imgRaw, BASE_RP);
+const image = absUrl(imgRaw, BASE_RP);
 
         const blockText = t(el$.text());
         const pn =
