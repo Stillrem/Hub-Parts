@@ -1,5 +1,5 @@
 // api/search.js
-import { sources } from '../api/sources.js';
+import { sources } from '../lib/sources.js';
 
 export default async function handler(req, res) {
   try {
