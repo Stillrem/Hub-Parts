@@ -1,6 +1,6 @@
 // app.js
 
-const API_URL = '/.netlify/functions/search';
+const API_URL = '/.versal/api/search';
 
 const PROVIDERS = [
   'SearsPartsDirect',
