@@ -2,91 +2,94 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>Parts Finder — Liquid Glass iOS 26</title>
+  <title>Parts Finder • Liquid Glass</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#05060a" />
 
-  <link rel="manifest" href="/manifest.webmanifest" />
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#050816" />
+
+  <!-- iOS -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+
   <link rel="stylesheet" href="/styles.css" />
-
-  <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png" />
-  <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png" />
 </head>
 <body>
-  <div class="app-root">
-    <header class="app-header glass-panel">
-      <div class="title-block">
-        <div class="title-main">Parts Finder</div>
-        <div class="title-sub">Multi-site search for appliance repair</div>
+  <div class="app-bg"></div>
+  <div class="app-noise"></div>
+
+  <main class="app-root">
+    <!-- HEADER CARD -->
+    <section class="card card-header">
+      <div class="header-top">
+        <h1 class="app-title">Parts Finder</h1>
+        <p class="app-subtitle">Multi-site search for appliance repair</p>
       </div>
-      <div class="ios-pill">
-        <span class="pill-dot"></span>
-        <span class="pill-text">Liquid Glass · iOS 26</span>
-      </div>
-    </header>
-
-    <main class="app-main">
-
-      <!-- Панель поиска -->
-      <section class="search-panel glass-panel">
-        <form id="search-form">
-          <label class="field-label" for="query">Поиск по модели или part #</label>
-          <div class="search-row">
-            <input
-              id="query"
-              name="query"
-              class="search-input"
-              type="text"
-              placeholder="Например: DG94-01431A, WB06X10634, RF28HMEDBSR"
-              required
-            />
-            <button type="submit" class="btn-primary">
-              <span class="btn-primary-glow"></span>
-              <span>Найти</span>
-            </button>
-          </div>
-
-          <div class="providers-block">
-            <div class="providers-header">
-              <span>Поставщики</span>
-              <button type="button" id="toggle-all" class="chip ghost">Все</button>
-            </div>
-            <div class="providers-chips" id="providers-chips">
-              <!-- Чипы заполнит app.js -->
-            </div>
-          </div>
-        </form>
-
-        <div class="search-status" id="search-status">
-          Готово к поиску 🔍
+      <div class="badge-row">
+        <div class="badge badge-pill">
+          <span class="badge-dot"></span>
+          Liquid Glass · iOS 26
         </div>
-      </section>
+      </div>
+    </section>
 
-      <!-- Результаты -->
-      <section class="results-panel glass-panel">
+    <!-- SEARCH CARD -->
+    <section class="card card-search">
+      <div class="card-inner">
+        <label class="field-label">Поиск по модели или part #</label>
+        <div class="search-row">
+          <div class="search-input-wrap">
+            <span class="search-icon">🔍</span>
+            <input id="queryInput" type="text"
+                   placeholder="FGIP2468UF0A"
+                   autocomplete="off" />
+          </div>
+          <button id="searchBtn" class="btn-primary">Найти</button>
+        </div>
+
+        <div class="field-label-row">
+          <span class="field-label">Поставщики</span>
+          <button id="clearSourcesBtn" class="link-muted" type="button">
+            Снять всё
+          </button>
+        </div>
+
+        <div id="sourcesList" class="chips-row">
+          <!-- чипы создаём из JS, но можно и руками -->
+        </div>
+
+        <p id="statusLine" class="status-line">Готов к поиску.</p>
+      </div>
+    </section>
+
+    <!-- RESULTS CARD -->
+    <section class="card card-results">
+      <div class="card-inner card-results-inner">
         <div class="results-header">
           <div>
-            <div class="results-title">Результаты</div>
-            <div class="results-sub" id="results-count">Пока ничего не найдено</div>
+            <h2 class="results-title">Результаты</h2>
+            <p id="resultsSubtitle" class="results-subtitle">
+              Пока ничего не найдено
+            </p>
           </div>
-          <button type="button" id="export-csv" class="btn-secondary" disabled>
+          <button id="csvBtn" class="btn-outline" type="button" disabled>
             Экспорт CSV
           </button>
         </div>
 
-        <div id="results-grid" class="results-grid">
-          <!-- Карточки результатов -->
+        <div id="resultsList" class="results-list">
+          <!-- карточки результатов -->
         </div>
-      </section>
-    </main>
+      </div>
+    </section>
 
     <footer class="app-footer">
-      <span>Sequoia / StillFusion · Parts meta-search</span>
-      <span class="dot-separator">•</span>
-      <span>PWA · iOS-style Liquid Glass</span>
+      Sequoia / StillFusion · Parts meta-search · PWA · iOS-style Liquid Glass
     </footer>
-  </div>
+  </main>
 
-  <script src="/app.js"></script>
+  <script src="/app.js" type="module"></script>
 </body>
 </html>
