@@ -1,5 +1,5 @@
 // api/sources.js
-import * as cheerio from 'cheerio';
+const cheerio = require('cheerio');
 
 const BASE_SEARS  = 'https://www.searspartsdirect.com';
 const BASE_RC     = 'https://www.repairclinic.com';
@@ -11,9 +11,8 @@ const BASE_MAR    = 'https://www.marcone.com';
 const BASE_EBAY   = 'https://www.ebay.com';
 const BASE_AMZ    = 'https://www.amazon.com';
 
-// УТИЛИТЫ
-const t = (s) => String(s || '').replace(/\s+/g, ' ').trim();
-
+// утилиты
+const t = s => String(s || '').replace(/\s+/g, ' ').trim();
 const first = (...vals) => {
   for (const v of vals) {
     const x = t(v);
@@ -22,51 +21,9 @@ const first = (...vals) => {
   return '';
 };
 
-// PN ИЗ ТЕКСТА (запасной вариант)
-const pnText = (s) => {
-  const txt = String(s || '').toUpperCase();
-
-  // отсекаем явно лишние слова
-  const STOP = new Set([
-    'HTTPS', 'HTTP', 'AMAZON',
-    'DRYER', 'WASHER', 'DISHWASHER',
-    'REFRIGERATOR', 'FRIDGE',
-    'RANGE', 'STOVE', 'OVEN', 'COOKTOP',
-    'MODEL', 'PARTS'
-  ]);
-
-  const tokens = txt.match(/[A-Z0-9\-]{3,}/g) || [];
-  if (!tokens.length) return '';
-
-  // сначала — токены с цифрами и не из стоп-списка
-  const withDigit = tokens.filter(x => /\d/.test(x) && !STOP.has(x));
-  if (withDigit.length) return withDigit[0];
-
-  // потом — любые с цифрами
-  const anyWithDigit = tokens.filter(x => /\d/.test(x));
-  if (anyWithDigit.length) return anyWithDigit[0];
-
-  // в крайнем случае — первый не из стоп-списка
-  const nonStop = tokens.filter(x => !STOP.has(x));
-  return nonStop[0] || tokens[0];
-};
-
-// PN ИЗ URL (Sears, модели и т.п.)
-const pnFromLink = (url) => {
-  const u = String(url || '').toUpperCase();
-
-  // 1) длинные числовые PN (5304509451)
-  let m = u.match(/(?:^|[^\d])(\d{7,})\b/);
-  if (m) return m[1];
-
-  // 2) последний сегмент пути: "LG-DLE4970W-DRYER-PARTS"
-  const last = u.split('?')[0].split('/').pop() || '';
-  const tokens = last.split(/[^A-Z0-9]+/).filter(Boolean);
-
-  const withDigit = tokens.filter(x => /\d/.test(x));
-  if (withDigit.length) return withDigit[0];
-
-  return '';
+const pnText = s => {
+  const m = String(s).match(/[A-Z0-9\-]{5,}/i);
+  return m ? m[0].toUpperCase() : '';
 };
 
 const pnFromLink = url => {
