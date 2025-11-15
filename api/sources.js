@@ -21,14 +21,57 @@ const first = (...vals) => {
   return '';
 };
 
-const pnText = s => {
-  const m = String(s).match(/[A-Z0-9\-]{5,}/i);
-  return m ? m[0].toUpperCase() : '';
+// PN из текста (запасной вариант, игнорируем DRYER/HTTPS и т.п.)
+const pnText = (s) => {
+  const txt = String(s || '').toUpperCase();
+
+  // слова, которые не должны становиться part_number
+  const STOP = new Set([
+    'HTTPS', 'HTTP', 'AMAZON',
+    'DRYER', 'WASHER', 'DISHWASHER',
+    'RANGE', 'STOVE', 'OVEN', 'COOKTOP',
+    'REFRIGERATOR', 'FRIDGE',
+    'MODEL', 'PARTS'
+  ]);
+
+  // парсим все токены типа ABC123, DLE4970W, 5304509451 и т.п.
+  const tokens = txt.match(/[A-Z0-9\-]{3,}/g) || [];
+
+  // 1) сначала токены, где есть цифра и они не из стоп-списка
+  const withDigit = tokens.filter(x => /\d/.test(x) && !STOP.has(x));
+  if (withDigit.length) return withDigit[0];
+
+  // 2) затем любые токены с цифрой (на всякий случай)
+  const anyWithDigit = tokens.filter(x => /\d/.test(x));
+  if (anyWithDigit.length) return anyWithDigit[0];
+
+  // 3) потом токены без цифр, но не из стоп-списка
+  const nonStop = tokens.filter(x => !STOP.has(x));
+  if (nonStop.length) return nonStop[0];
+
+  // 4) в крайнем случае — самый первый токен
+  return tokens[0] || '';
 };
 
-const pnFromLink = url => {
-  const m = String(url || '').match(/(?:^|[^\d])(\d{7,})\b/);
-  return m ? m[1].toUpperCase() : '';
+// PN из URL (Sears: модели/детали и т.п.)
+const pnFromLink = (url) => {
+  const u = String(url || '').toUpperCase();
+
+  // 1) сначала пробуем длинный числовой PN (5304509451 и т.п.)
+  let m = u.match(/(?:^|[^\d])(\d{7,})\b/);
+  if (m) return m[1];
+
+  // 2) затем берём последний сегмент пути, напр.:
+  //    /model/.../LG-DLE4970W-DRYER-PARTS
+  const last = u.split('?')[0].split('/').filter(Boolean).pop() || '';
+  const tokens = last.split(/[^A-Z0-9\-]+/).filter(Boolean);
+
+  // приоритет — токен с цифрой (DLE4970W)
+  const withDigit = tokens.filter(x => /\d/.test(x));
+  if (withDigit.length) return withDigit[0];
+
+  // иначе любой токен
+  return tokens[0] || '';
 };
 
 function unwrapNext(src) {
