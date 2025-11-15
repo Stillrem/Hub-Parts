@@ -1,4 +1,4 @@
-// functions/lib/sources.js
+// api/sources.js
 const cheerio = require('cheerio');
 
 const BASE_SEARS  = 'https://www.searspartsdirect.com';
