@@ -7,7 +7,6 @@
   --glass-border-soft: rgba(255, 255, 255, 0.06);
   --accent: #34e1b9;
   --accent-2: #34b3ff;
-  --accent-soft: rgba(52, 225, 185, 0.18);
   --text-main: #f9fbff;
   --text-muted: #a3b0c6;
   --text-soft: #6c7a92;
@@ -15,9 +14,7 @@
   --radius-xl: 28px;
   --radius-lg: 20px;
   --radius-pill: 999px;
-  --shadow-strong: 0 32px 70px rgba(0, 0, 0, 0.8);
   --shadow-soft: 0 18px 40px rgba(0, 0, 0, 0.55);
-  --card-gap: 18px;
   --transition-fast: 0.18s ease-out;
 }
 
@@ -40,7 +37,7 @@ body {
   background: var(--bg-main);
 }
 
-/* layered background */
+/* layered bg */
 
 .app-bg {
   position: fixed;
@@ -86,10 +83,10 @@ body {
 
 .card {
   position: relative;
-  border-radius: var(--radius-xl);
+  border-radius: 28px;
   background: radial-gradient(
       circle at 0 0,
-      rgba(255, 255, 255, 0.12),
+      rgba(255, 255, 255, 0.11),
       transparent 55%
     ),
     radial-gradient(
@@ -124,26 +121,13 @@ body {
   padding-bottom: 18px;
 }
 
-.card-search {
-  margin-top: 2px;
-}
-
 .card-results {
   flex: 1;
   min-height: 220px;
 }
 
-/* inner */
-
 .card-inner {
   position: relative;
-  z-index: 1;
-}
-
-.card-results-inner {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
 }
 
 /* header */
@@ -151,7 +135,6 @@ body {
 .app-title {
   font-size: 26px;
   font-weight: 700;
-  letter-spacing: 0.01em;
   margin: 0 0 4px;
 }
 
@@ -166,18 +149,16 @@ body {
 .badge-row {
   margin-top: 12px;
   display: flex;
-  flex-wrap: wrap;
   gap: 8px;
 }
 
 .badge {
   font-size: 12px;
-  color: var(--text-main);
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
-  border-radius: var(--radius-pill);
+  border-radius: 999px;
   background: linear-gradient(
     135deg,
     rgba(27, 222, 154, 0.22),
@@ -193,7 +174,7 @@ body {
   background: radial-gradient(circle, #5cffc8 0, #00c08b 50%, #007a5c 100%);
 }
 
-/* search form */
+/* search */
 
 .field-label {
   display: block;
@@ -221,7 +202,7 @@ body {
 .search-input-wrap {
   flex: 1;
   position: relative;
-  border-radius: var(--radius-pill);
+  border-radius: 999px;
   background: linear-gradient(
       145deg,
       rgba(255, 255, 255, 0.08),
@@ -271,7 +252,7 @@ button {
 
 .btn-primary {
   border: none;
-  border-radius: var(--radius-pill);
+  border-radius: 999px;
   padding: 0 22px;
   font-size: 15px;
   font-weight: 600;
@@ -298,7 +279,7 @@ button {
 }
 
 .btn-outline {
-  border-radius: var(--radius-pill);
+  border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.35);
   background: rgba(5, 10, 30, 0.85);
   color: var(--text-main);
@@ -316,18 +297,6 @@ button {
   cursor: default;
 }
 
-/* links */
-
-.link-muted {
-  background: none;
-  border: none;
-  color: var(--text-soft);
-  font-size: 12px;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  padding: 4px 0;
-}
-
 /* chips */
 
 .chips-row {
@@ -337,7 +306,7 @@ button {
 }
 
 .chip {
-  border-radius: var(--radius-pill);
+  border-radius: 999px;
   border: 1px solid rgba(157, 202, 255, 0.45);
   background: radial-gradient(
       circle at 0 0,
@@ -378,6 +347,10 @@ button {
   color: var(--text-soft);
 }
 
+.status-error {
+  color: var(--error);
+}
+
 /* results */
 
 .results-header {
@@ -409,7 +382,7 @@ button {
 
 .result-card {
   position: relative;
-  border-radius: var(--radius-lg);
+  border-radius: 20px;
   background: linear-gradient(
       130deg,
       rgba(255, 255, 255, 0.04),
@@ -484,7 +457,7 @@ button {
 .source-pill {
   font-size: 11px;
   padding: 4px 9px;
-  border-radius: var(--radius-pill);
+  border-radius: 999px;
   background: rgba(21, 36, 70, 0.96);
   border: 1px solid rgba(103, 187, 255, 0.6);
 }
@@ -506,10 +479,4 @@ button {
   font-size: 11px;
   color: var(--text-soft);
   text-align: center;
-}
-
-/* errors */
-
-.status-error {
-  color: var(--error);
 }
