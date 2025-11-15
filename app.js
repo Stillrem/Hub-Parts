@@ -1,6 +1,6 @@
 // app.js
 
-const API_URL = '/.versal/api/search';
+const API_URL = '/api/search';
 
 const PROVIDERS = [
   'SearsPartsDirect',
