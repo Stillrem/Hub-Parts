@@ -11,7 +11,56 @@ const BASE_MAR    = 'https://www.marcone.com';
 const BASE_EBAY   = 'https://www.ebay.com';
 const BASE_AMZ    = 'https://www.amazon.com';
 
-// утилиты
+/* -------------------------------------------------
+ * ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ДОГРУЗКИ КАРТИНОК С PDP
+ * ------------------------------------------------- */
+
+async function httpGetHtml(url) {
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0 Safari/537.36',
+      'Accept-Language': 'en-US,en;q=0.9',
+      Referer: url.split('/').slice(0, 3).join('/') + '/',
+    },
+  });
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status} for ${url}`);
+  }
+  return await res.text();
+}
+
+// универсальный поиск первой пригодной картинки на PDP
+async function fetchFirstImageFromPage(url, base) {
+  try {
+    const html = await httpGetHtml(url);
+    const $ = cheerio.load(html);
+
+    // 1) пытаемся взять og:image
+    let img =
+      $('meta[property="og:image"], meta[name="og:image"]').attr('content') ||
+      '';
+
+    // 2) если нет og:image — берём первую <img>
+    if (!img) {
+      const imgEl = $('img').first();
+      img =
+        imgEl.attr('data-src') ||
+        imgEl.attr('data-original') ||
+        imgEl.attr('srcset') ||
+        imgEl.attr('src') ||
+        '';
+    }
+
+    if (!img) return '';
+    return absUrl(img, base);
+  } catch {
+    return '';
+  }
+}
+
+/* ----------- утилиты ----------- */
+
 const t = s => String(s || '').replace(/\s+/g, ' ').trim();
 const first = (...vals) => {
   for (const v of vals) {
@@ -21,57 +70,14 @@ const first = (...vals) => {
   return '';
 };
 
-// PN из текста (запасной вариант, игнорируем DRYER/HTTPS и т.п.)
-const pnText = (s) => {
-  const txt = String(s || '').toUpperCase();
-
-  // слова, которые не должны становиться part_number
-  const STOP = new Set([
-    'HTTPS', 'HTTP', 'AMAZON',
-    'DRYER', 'WASHER', 'DISHWASHER',
-    'RANGE', 'STOVE', 'OVEN', 'COOKTOP',
-    'REFRIGERATOR', 'FRIDGE',
-    'MODEL', 'PARTS'
-  ]);
-
-  // парсим все токены типа ABC123, DLE4970W, 5304509451 и т.п.
-  const tokens = txt.match(/[A-Z0-9\-]{3,}/g) || [];
-
-  // 1) сначала токены, где есть цифра и они не из стоп-списка
-  const withDigit = tokens.filter(x => /\d/.test(x) && !STOP.has(x));
-  if (withDigit.length) return withDigit[0];
-
-  // 2) затем любые токены с цифрой (на всякий случай)
-  const anyWithDigit = tokens.filter(x => /\d/.test(x));
-  if (anyWithDigit.length) return anyWithDigit[0];
-
-  // 3) потом токены без цифр, но не из стоп-списка
-  const nonStop = tokens.filter(x => !STOP.has(x));
-  if (nonStop.length) return nonStop[0];
-
-  // 4) в крайнем случае — самый первый токен
-  return tokens[0] || '';
+const pnText = s => {
+  const m = String(s).match(/[A-Z0-9\-]{5,}/i);
+  return m ? m[0].toUpperCase() : '';
 };
 
-// PN из URL (Sears: модели/детали и т.п.)
-const pnFromLink = (url) => {
-  const u = String(url || '').toUpperCase();
-
-  // 1) сначала пробуем длинный числовой PN (5304509451 и т.п.)
-  let m = u.match(/(?:^|[^\d])(\d{7,})\b/);
-  if (m) return m[1];
-
-  // 2) затем берём последний сегмент пути, напр.:
-  //    /model/.../LG-DLE4970W-DRYER-PARTS
-  const last = u.split('?')[0].split('/').filter(Boolean).pop() || '';
-  const tokens = last.split(/[^A-Z0-9\-]+/).filter(Boolean);
-
-  // приоритет — токен с цифрой (DLE4970W)
-  const withDigit = tokens.filter(x => /\d/.test(x));
-  if (withDigit.length) return withDigit[0];
-
-  // иначе любой токен
-  return tokens[0] || '';
+const pnFromLink = url => {
+  const m = String(url || '').match(/(?:^|[^\d])(\d{7,})\b/);
+  return m ? m[1].toUpperCase() : '';
 };
 
 function unwrapNext(src) {
@@ -99,32 +105,49 @@ function absUrl(src, base) {
   return src;
 }
 
-/* Sears – берём любую нормальную картинку, без проверки CDN */
+/* Sears */
+
+const isSearsCDN = u =>
+  /^https?:\/\/s\.sears\.com\/is\/image\/Sears\//i.test(String(u || ''));
 
 function pickSearsThumb($ctx) {
-  let imgRaw =
-    $ctx.find('img').attr('data-src') ||
-    $ctx.find('img').attr('data-original') ||
-    $ctx.find('img').attr('data-srcset') ||
-    $ctx.find('img').attr('srcset') ||
-    $ctx.find('img').attr('src') ||
-    '';
+  let img =
+    absUrl($ctx.find('img').attr('src') || '', BASE_SEARS) ||
+    absUrl($ctx.find('img').attr('data-src') || '', BASE_SEARS);
 
-  // если вдруг выше не нашли – пробегаемся по всем img
-  if (!imgRaw) {
+  if (!isSearsCDN(img)) {
+    const srcset =
+      $ctx.find('img').attr('srcset') ||
+      $ctx.find('img').attr('data-srcset') ||
+      '';
+    if (srcset) img = absUrl(srcset, BASE_SEARS);
+  }
+
+  if (!isSearsCDN(img)) {
+    let found = '';
+    $ctx.find('picture source').each((_, s) => {
+      if (found) return;
+      const ss = absUrl(s.attribs?.srcset || '', BASE_SEARS);
+      if (isSearsCDN(ss)) found = ss;
+    });
+    if (found) img = found;
+  }
+
+  if (!isSearsCDN(img)) {
     $ctx.find('img').each((_, el) => {
-      if (imgRaw) return;
-      imgRaw =
-        el.attribs?.['data-src'] ||
-        el.attribs?.['data-original'] ||
-        el.attribs?.['data-srcset'] ||
-        el.attribs?.srcset ||
+      if (img && isSearsCDN(img)) return;
+      const raw =
         el.attribs?.src ||
+        el.attribs?.['data-src'] ||
+        el.attribs?.srcset ||
+        el.attribs?.['data-srcset'] ||
         '';
+      const abs = absUrl(raw, BASE_SEARS);
+      if (isSearsCDN(abs)) img = abs;
     });
   }
 
-  return absUrl(imgRaw, BASE_SEARS);
+  return isSearsCDN(img) ? img : '';
 }
 
 /* RepairClinic helpers */
@@ -211,109 +234,31 @@ function rcFromNextData($) {
   });
 }
 
-/* SOURCES */
+/* ===== SOURCES ===== */
 
 const sources = [
   /* SearsPartsDirect */
-{
-  name: 'SearsPartsDirect',
-  searchUrl: q => `${BASE_SEARS}/search?q=${encodeURIComponent(q)}`,
-  parser: async (html, q) => {
-    const $ = cheerio.load(html);
-    let out = [];
+  {
+    name: 'SearsPartsDirect',
+    searchUrl: q => `${BASE_SEARS}/search?q=${encodeURIComponent(q)}`,
+    parser: async html => {
+      const $ = cheerio.load(html);
+      const out = [];
 
-    // Модель, которую ввёл пользователь (DLE4970W → только буквы/цифры)
-    const qModelRaw = String(q || '').toUpperCase().trim();
-    const qModel = qModelRaw.replace(/[^A-Z0-9]/g, '');
-
-    /* 1. СНАЧАЛА ПРОБУЕМ НАЙТИ ТОЧНУЮ МОДЕЛЬ /model/... */
-
-    if (qModel) {
-      const exactModels = [];
-      const seenLinks = new Set();
-      const reModel = new RegExp(`\\b${qModel}\\b`);
-
-      $('a[href*="/model/"]').each((_, a) => {
-        const href = $(a).attr('href') || '';
-        if (!href || seenLinks.has(href)) return;
-
-        const link = absUrl(href, BASE_SEARS);
-        const title = t($(a).text()) || link;
-
-        const matchStr = (title + ' ' + link).toUpperCase().replace(/[^A-Z0-9]/g, ' ');
-        if (!reModel.test(matchStr)) return; // пропускаем DLE4970WE и т.п.
-
-        seenLinks.add(href);
-
-        // Пытаемся взять картинку из ближайшей карточки модели
-        const card$ = $(a).closest('.model-card, .card, .product-card');
-        const image = card$.length ? pickSearsThumb(card$) : '';
-
-        exactModels.push({
-          title,
-          link,
-          image,
-          source: 'SearsPartsDirect',
-          part_number: qModel    // красиво покажет Part #DLE4970W
-        });
-      });
-
-      if (exactModels.length) {
-        // Если нашлись точные совпадения по модели — возвращаем ТОЛЬКО их
-        return exactModels;
-      }
-    }
-
-    /* 2. ЕСЛИ ТОЧНОЙ МОДЕЛИ НЕТ — СТАРОЕ ПОВЕДЕНИЕ (ДЕТАЛИ + МОДЕЛИ) */
-
-    // детали / товары
-    $('.part-card, .product-card, .card, [data-component="product-card"], a[href*="/part/"], a[href*="/product/"]').each(
-      (_, el) => {
-        const el$ = $(el);
-        const a$ = el$.is('a') ? el$ : el$.find('a[href]').first();
-        const href = a$.attr('href') || '';
-        if (!/\/part\/|\/product\//i.test(href || '')) return;
-
-        const title = first(
-          el$.find('.card-title').text(),
-          el$.find('.product-title').text(),
-          el$.text()
-        );
-        const link = absUrl(href, BASE_SEARS);
-        const image = pickSearsThumb(el$);
-        const part_number = pnFromLink(link) || pnText(title);
-
-        out.push({
-          title: t(title),
-          link,
-          image,
-          source: 'SearsPartsDirect',
-          part_number
-        });
-      }
-    );
-
-    // модели (если деталей нет)
-    if (!out.length) {
-      $('.model-card, [data-component="model-card"], .card, .product-card').each(
-        (_, el) => {
+      $('.part-card, .product-card, .card, [data-component="product-card"], a[href*="/part/"], a[href*="/product/"]').each(
+        (_, el
+        ) => {
           const el$ = $(el);
-          let modelHref = '';
+          const a$ = el$.is('a') ? el$ : el$.find('a[href]').first();
+          const href = a$.attr('href') || '';
+          if (!/\/part\/|\/product\//i.test(href || '')) return;
 
-          el$.find('a[href]').each((_, a) => {
-            const h = $(a).attr('href') || '';
-            const txt = t($(a).text()).toLowerCase();
-            if (/\/model\//i.test(h)) modelHref = modelHref || h;
-            if (/shop\s*parts/i.test(txt) && h) modelHref = h;
-          });
-
-          if (!modelHref) return;
-          const link = absUrl(modelHref, BASE_SEARS);
           const title = first(
-            el$.find('.card-title, .product-title, .model-title').text(),
-            el$.attr('aria-label'),
+            el$.find('.card-title').text(),
+            el$.find('.product-title').text(),
             el$.text()
           );
+          const link = absUrl(href, BASE_SEARS);
           const image = pickSearsThumb(el$);
           const part_number = pnFromLink(link) || pnText(title);
 
@@ -327,41 +272,78 @@ const sources = [
         }
       );
 
-      // любые ссылки /model/ (fallback)
       if (!out.length) {
-        const seen = new Set();
-        $('a[href*="/model/"]').each((_, a) => {
-          const h = $(a).attr('href') || '';
-          if (!h || seen.has(h)) return;
-          seen.add(h);
+        $('.model-card, [data-component="model-card"], .card, .product-card').each(
+          (_, el
+          ) => {
+            const el$ = $(el);
+            let modelHref = '';
+            el$.find('a[href]').each((_, a) => {
+              const h = $(a).attr('href') || '';
+              const txt = t($(a).text()).toLowerCase();
+              if (/\/model\//i.test(h)) modelHref = modelHref || h;
+              if (/shop\s*parts/i.test(txt) && h) modelHref = h;
+            });
+            if (!modelHref) return;
+            const link = absUrl(modelHref, BASE_SEARS);
+            const title = first(
+              el$
+                .find('.card-title, .product-title, .model-title')
+                .text(),
+              el$.attr('aria-label'),
+              el$.text()
+            );
+            const image = pickSearsThumb(el$);
+            const part_number = pnFromLink(link) || pnText(title);
+            out.push({
+              title: t(title),
+              link,
+              image,
+              source: 'SearsPartsDirect',
+              part_number
+            });
+          }
+        );
 
-          const link = absUrl(h, BASE_SEARS);
-          const title = t($(a).text()) || link;
-          const part_number = pnFromLink(link) || pnText(title);
-
-          out.push({
-            title,
-            link,
-            image: '',
-            source: 'SearsPartsDirect',
-            part_number
+        if (!out.length) {
+          const seenLinks = new Set();
+          $('a[href*="/model/"]').each((_, a) => {
+            const h = $(a).attr('href') || '';
+            if (!h || seenLinks.has(h)) return;
+            seenLinks.add(h);
+            const link = absUrl(h, BASE_SEARS);
+            const title = t($(a).text()) || link;
+            const part_number = pnFromLink(link) || pnText(title);
+            out.push({
+              title,
+              link,
+              image: '',
+              source: 'SearsPartsDirect',
+              part_number
+            });
           });
-        });
+        }
       }
+
+      // --- догружаем картинки с PDP, если их нет в выдаче ---
+      await Promise.allSettled(
+        out.map(async item => {
+          if (item.image) return;
+          if (!item.link) return;
+          const img = await fetchFirstImageFromPage(item.link, BASE_SEARS);
+          if (img) item.image = img;
+        })
+      );
+
+      const seen = new Set();
+      return out.filter(x => {
+        const k = x.link;
+        if (!k || seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
     }
-
-    // убираем дубликаты по ссылке
-    const seen = new Set();
-    out = out.filter(x => {
-      const k = x.link;
-      if (!k || seen.has(k)) return false;
-      seen.add(k);
-      return true;
-    });
-
-    return out;
-  }
-},
+  },
 
   /* RepairClinic */
   {
@@ -438,6 +420,16 @@ const sources = [
         });
       }
 
+      // --- догружаем картинки с PDP для RepairClinic ---
+      await Promise.allSettled(
+        out.map(async item => {
+          if (item.image) return;
+          if (!item.link) return;
+          const img = await fetchFirstImageFromPage(item.link, BASE_RC);
+          if (img) item.image = img;
+        })
+      );
+
       const seen = new Set();
       return out.filter(x => {
         const k = x.link;
@@ -460,12 +452,10 @@ const sources = [
       $('.product-item').each((_, el) => {
         const el$ = $(el);
 
-        const a$ = el$
-          .find('.product-item-link')
-          .first()
-          .length
-          ? el$.find('.product-item-link').first()
-          : el$.find('a[href]').first();
+        const a$ =
+          el$.find('.product-item-link').first().length
+            ? el$.find('.product-item-link').first()
+            : el$.find('a[href]').first();
 
         const href = a$.attr('href') || '';
         if (!href) return;
@@ -480,16 +470,13 @@ const sources = [
         );
 
         let imgRaw =
-  el$.find('img.product-image-photo').attr('src') ||
-  el$.find('img.product-image-photo').attr('data-src') ||
-  el$.find('img').attr('data-src') ||
-  el$.find('img').attr('data-original') ||
-  el$.find('img').attr('data-srcset') ||
-  el$.find('img').attr('srcset') ||
-  el$.find('img').attr('src') ||
-  '';
+          el$.find('img.product-image-photo').attr('src') ||
+          el$.find('img').attr('data-src') ||
+          el$.find('img').attr('srcset') ||
+          el$.find('img').attr('src') ||
+          '';
 
-const image = absUrl(imgRaw, BASE_RP);
+        const image = absUrl(imgRaw, BASE_RP);
 
         const blockText = t(el$.text());
         const pn =
@@ -497,7 +484,7 @@ const image = absUrl(imgRaw, BASE_RP);
 
         const priceText = t(
           el$.find('.price').first().text() ||
-            el$.find('[data-price-type="finalPrice"]').first().text()
+          el$.find('[data-price-type="finalPrice"]').first().text()
         );
         const priceNum = priceText
           .replace(/[^0-9.,]/g, '')
