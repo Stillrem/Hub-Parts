@@ -1,5 +1,5 @@
 // app.js
-const API_URL = '/api/search'; // ВАЖНО: именно так на Vercel
+const API_URL = '/api/search'; // на Vercel именно так
 
 const SOURCE_NAMES = [
   'SearsPartsDirect',
@@ -14,7 +14,7 @@ const SOURCE_NAMES = [
 ];
 
 const queryInput = document.getElementById('queryInput');
-const searchBtn = document.getElementById('searchBtn');
+const searchBtn = document.get
 const statusLine = document.getElementById('statusLine');
 const resultsList = document.getElementById('resultsList');
 const resultsSubtitle = document.getElementById('resultsSubtitle');
