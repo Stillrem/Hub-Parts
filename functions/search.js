@@ -1,10 +1,9 @@
 // functions/search.js
+const { sources } = require('./lib/sources');
 
-import { sources } from './lib/sources.js';
+// В Node 18+ fetch глобальный. Если у тебя старая версия – в проекте должен быть node-fetch.
 
-// В Node 18+ fetch глобальный. Если нет — нужно подключить node-fetch.
-
-export const handler = async (event, context) => {
+exports.handler = async (event, context) => {
   try {
     const q = (event.queryStringParameters && event.queryStringParameters.q || '').trim();
     const srcParam = (event.queryStringParameters && event.queryStringParameters.sources || '').trim();
@@ -41,7 +40,6 @@ export const handler = async (event, context) => {
 
     const resultsBySource = await Promise.all(fetchPromises);
 
-    // плоский массив с source в каждом объекте
     const flatItems = [];
     for (const { source, items } of resultsBySource) {
       for (const it of items) {
