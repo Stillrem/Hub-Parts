@@ -11,56 +11,7 @@ const BASE_MAR    = 'https://www.marcone.com';
 const BASE_EBAY   = 'https://www.ebay.com';
 const BASE_AMZ    = 'https://www.amazon.com';
 
-/* -------------------------------------------------
- * ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ДОГРУЗКИ КАРТИНОК С PDP
- * ------------------------------------------------- */
-
-async function httpGetHtml(url) {
-  const res = await fetch(url, {
-    headers: {
-      'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0 Safari/537.36',
-      'Accept-Language': 'en-US,en;q=0.9',
-      Referer: url.split('/').slice(0, 3).join('/') + '/',
-    },
-  });
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status} for ${url}`);
-  }
-  return await res.text();
-}
-
-// универсальный поиск первой пригодной картинки на PDP
-async function fetchFirstImageFromPage(url, base) {
-  try {
-    const html = await httpGetHtml(url);
-    const $ = cheerio.load(html);
-
-    // 1) пытаемся взять og:image
-    let img =
-      $('meta[property="og:image"], meta[name="og:image"]').attr('content') ||
-      '';
-
-    // 2) если нет og:image — берём первую <img>
-    if (!img) {
-      const imgEl = $('img').first();
-      img =
-        imgEl.attr('data-src') ||
-        imgEl.attr('data-original') ||
-        imgEl.attr('srcset') ||
-        imgEl.attr('src') ||
-        '';
-    }
-
-    if (!img) return '';
-    return absUrl(img, base);
-  } catch {
-    return '';
-  }
-}
-
-/* ----------- утилиты ----------- */
-
+// утилиты
 const t = s => String(s || '').replace(/\s+/g, ' ').trim();
 const first = (...vals) => {
   for (const v of vals) {
@@ -78,6 +29,15 @@ const pnText = s => {
 const pnFromLink = url => {
   const m = String(url || '').match(/(?:^|[^\d])(\d{7,})\b/);
   return m ? m[1].toUpperCase() : '';
+};
+
+// проверка, что строка содержит токен (модель) как отдельное слово
+const hasToken = (text, token) => {
+  const up = String(text || '').toUpperCase();
+  const tkn = String(token || '').toUpperCase();
+  if (!tkn) return false;
+  const parts = up.split(/[^A-Z0-9]+/);
+  return parts.includes(tkn);
 };
 
 function unwrapNext(src) {
@@ -234,20 +194,20 @@ function rcFromNextData($) {
   });
 }
 
-/* ===== SOURCES ===== */
+/* SOURCES */
 
 const sources = [
   /* SearsPartsDirect */
   {
     name: 'SearsPartsDirect',
     searchUrl: q => `${BASE_SEARS}/search?q=${encodeURIComponent(q)}`,
-    parser: async html => {
+    parser: async (html, q) => {
       const $ = cheerio.load(html);
-      const out = [];
+      let out = [];
 
+      // детали/товары
       $('.part-card, .product-card, .card, [data-component="product-card"], a[href*="/part/"], a[href*="/product/"]').each(
-        (_, el
-        ) => {
+        (_, el) => {
           const el$ = $(el);
           const a$ = el$.is('a') ? el$ : el$.find('a[href]').first();
           const href = a$.attr('href') || '';
@@ -272,10 +232,10 @@ const sources = [
         }
       );
 
+      // модели
       if (!out.length) {
         $('.model-card, [data-component="model-card"], .card, .product-card').each(
-          (_, el
-          ) => {
+          (_, el) => {
             const el$ = $(el);
             let modelHref = '';
             el$.find('a[href]').each((_, a) => {
@@ -325,15 +285,24 @@ const sources = [
         }
       }
 
-      // --- догружаем картинки с PDP, если их нет в выдаче ---
-      await Promise.allSettled(
-        out.map(async item => {
-          if (item.image) return;
-          if (!item.link) return;
-          const img = await fetchFirstImageFromPage(item.link, BASE_SEARS);
-          if (img) item.image = img;
-        })
-      );
+      /* фильтр по точной модели, например DLE4970W */
+      const qModel = pnText(q || '');
+      if (qModel) {
+        const matches = out.filter(item => {
+          const pn = String(item.part_number || '').toUpperCase();
+          if (pn === qModel) return true;
+          if (hasToken(item.title, qModel)) return true;
+          if (hasToken(item.link, qModel)) return true;
+          return false;
+        });
+
+        if (matches.length) {
+          const modelItem = matches.find(it => /\/model\//i.test(it.link || ''));
+          const chosen = modelItem || matches[0];
+          chosen.part_number = qModel;
+          out = [chosen];
+        }
+      }
 
       const seen = new Set();
       return out.filter(x => {
@@ -420,16 +389,6 @@ const sources = [
         });
       }
 
-      // --- догружаем картинки с PDP для RepairClinic ---
-      await Promise.allSettled(
-        out.map(async item => {
-          if (item.image) return;
-          if (!item.link) return;
-          const img = await fetchFirstImageFromPage(item.link, BASE_RC);
-          if (img) item.image = img;
-        })
-      );
-
       const seen = new Set();
       return out.filter(x => {
         const k = x.link;
@@ -480,7 +439,9 @@ const sources = [
 
         const blockText = t(el$.text());
         const pn =
-          pnText(blockText) || pnText(title) || pnText(link);
+          pnText(blockText) ||
+          pnText(title) ||
+          pnText(link);
 
         const priceText = t(
           el$.find('.price').first().text() ||
@@ -538,8 +499,7 @@ const sources = [
       const out = [];
 
       $('.searchProduct, .list-item, .product-list-item, .product').each(
-        (_, el
-        ) => {
+        (_, el) => {
           const el$ = $(el);
           const a$ = el$.find('a[href]').first();
           const href = a$.attr('href') || '';
@@ -605,8 +565,7 @@ const sources = [
       const out = [];
 
       $('.search-result, .ps-product-list__item, .product-list-item').each(
-        (_, el
-        ) => {
+        (_, el) => {
           const el$ = $(el);
           const a$ = el$.find('a[href]').first();
           const href = a$.attr('href') || '';
@@ -669,8 +628,7 @@ const sources = [
       const out = [];
 
       $('.product-item, .search-result-item, .result-item').each(
-        (_, el
-        ) => {
+        (_, el) => {
           const el$ = $(el);
           const a$ = el$.find('a[href]').first();
           const href = a$.attr('href') || '';
@@ -734,8 +692,7 @@ const sources = [
       const out = [];
 
       $('.product, .product-item, .search-result-item').each(
-        (_, el
-        ) => {
+        (_, el) => {
           const el$ = $(el);
           const a$ = el$.find('a[href]').first();
           const href = a$.attr('href') || '';
