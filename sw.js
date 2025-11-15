@@ -1,8 +1,6 @@
 // sw.js
-
 const CACHE_NAME = 'parts-finder-v1';
-
-const CORE_ASSETS = [
+const ASSETS = [
   '/',
   '/index.html',
   '/styles.css',
@@ -10,38 +8,32 @@ const CORE_ASSETS = [
   '/manifest.webmanifest'
 ];
 
-self.addEventListener('install', (event) => {
+self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE_ASSETS))
+    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
   );
   self.skipWaiting();
 });
 
-self.addEventListener('activate', (event) => {
+self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then((keys) =>
+    caches.keys().then(keys =>
       Promise.all(
-        keys
-          .filter((key) => key !== CACHE_NAME)
-          .map((key) => caches.delete(key))
+        keys.map(k => {
+          if (k !== CACHE_NAME) return caches.delete(k);
+        })
       )
     )
   );
   self.clients.claim();
 });
 
-// network-first для API, cache-first для статики
-self.addEventListener('fetch', (event) => {
+self.addEventListener('fetch', event => {
   const { request } = event;
-
-  if (request.url.includes('/.netlify/functions/search')) {
-    event.respondWith(
-      fetch(request).catch(() => caches.match(request))
-    );
-    return;
-  }
+  if (request.method !== 'GET') return;
+  if (request.url.includes('/api/')) return; // API не кешируем
 
   event.respondWith(
-    caches.match(request).then((cached) => cached || fetch(request))
+    caches.match(request).then(cached => cached || fetch(request))
   );
 });
