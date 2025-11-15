@@ -21,9 +21,21 @@ const first = (...vals) => {
   return '';
 };
 
-const pnText = s => {
-  const m = String(s).match(/[A-Z0-9\-]{5,}/i);
-  return m ? m[0].toUpperCase() : '';
+// PN из текста: стараемся вытащить именно код с цифрами (DLE4970W, FGIP2468UF0A и т.п.)
+const pnText = (s) => {
+  const txt = String(s || '').toUpperCase();
+
+  // все "слова" из букв/цифр/дефисов длиной 3+
+  const tokens = txt.match(/[A-Z0-9\-]{3,}/g) || [];
+  if (!tokens.length) return '';
+
+  // в приоритете — токены, где есть хотя бы одна цифра
+  const withDigit = tokens.filter(x => /\d/.test(x));
+
+  // берём первый токен с цифрой, если есть, иначе просто первый
+  const candidate = withDigit[0] || tokens[0];
+
+  return (candidate || '').replace(/^[#\s]+/, '');
 };
 
 const pnFromLink = url => {
