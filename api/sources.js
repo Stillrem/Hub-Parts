@@ -99,49 +99,32 @@ function absUrl(src, base) {
   return src;
 }
 
-/* Sears */
-
-const isSearsCDN = u =>
-  /^https?:\/\/s\.sears\.com\/is\/image\/Sears\//i.test(String(u || ''));
+/* Sears – берём любую нормальную картинку, без проверки CDN */
 
 function pickSearsThumb($ctx) {
-  let img =
-    absUrl($ctx.find('img').attr('src') || '', BASE_SEARS) ||
-    absUrl($ctx.find('img').attr('data-src') || '', BASE_SEARS);
+  let imgRaw =
+    $ctx.find('img').attr('data-src') ||
+    $ctx.find('img').attr('data-original') ||
+    $ctx.find('img').attr('data-srcset') ||
+    $ctx.find('img').attr('srcset') ||
+    $ctx.find('img').attr('src') ||
+    '';
 
-  if (!isSearsCDN(img)) {
-    const srcset =
-      $ctx.find('img').attr('srcset') ||
-      $ctx.find('img').attr('data-srcset') ||
-      '';
-    if (srcset) img = absUrl(srcset, BASE_SEARS);
-  }
-
-  if (!isSearsCDN(img)) {
-    let found = '';
-    $ctx.find('picture source').each((_, s) => {
-      if (found) return;
-      const ss = absUrl(s.attribs?.srcset || '', BASE_SEARS);
-      if (isSearsCDN(ss)) found = ss;
-    });
-    if (found) img = found;
-  }
-
-  if (!isSearsCDN(img)) {
+  // если вдруг выше не нашли – пробегаемся по всем img
+  if (!imgRaw) {
     $ctx.find('img').each((_, el) => {
-      if (img && isSearsCDN(img)) return;
-      const raw =
-        el.attribs?.src ||
+      if (imgRaw) return;
+      imgRaw =
         el.attribs?.['data-src'] ||
-        el.attribs?.srcset ||
+        el.attribs?.['data-original'] ||
         el.attribs?.['data-srcset'] ||
+        el.attribs?.srcset ||
+        el.attribs?.src ||
         '';
-      const abs = absUrl(raw, BASE_SEARS);
-      if (isSearsCDN(abs)) img = abs;
     });
   }
 
-  return isSearsCDN(img) ? img : '';
+  return absUrl(imgRaw, BASE_SEARS);
 }
 
 /* RepairClinic helpers */
