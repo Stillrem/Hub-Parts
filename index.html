@@ -2,90 +2,697 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>Parts Finder • Liquid Glass</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hub Parts — Поиск запчастей</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
 
-  <!-- PWA -->
-  <link rel="manifest" href="/manifest.webmanifest">
-  <meta name="theme-color" content="#050816" />
+  <style>
+    :root {
+      --accent: #37e3c4;
+      --accent-soft: #7df6e1;
+      --accent-dark: #1b8f7a;
+      --danger: #ff5c7a;
+      --glass-bg: rgba(10, 18, 26, 0.66);
+      --glass-border: rgba(255, 255, 255, 0.14);
+      --text-main: #f8fbff;
+      --text-muted: #b0c4d4;
+      --text-secondary: #d0e3f3;
+      --shadow-soft: 0 24px 60px rgba(0, 0, 0, 0.65);
+      --radius-xl: 26px;
+      --radius-lg: 20px;
+      --radius-pill: 999px;
+      --blur: 26px;
+    }
 
-  <!-- iOS -->
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
 
-  <link rel="stylesheet" href="/styles.css" />
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        "Helvetica Neue", Arial, sans-serif;
+      color: var(--text-main);
+      background: #020407;
+      overflow: hidden;
+    }
+
+    body {
+      position: relative;
+    }
+
+    /* Фон – лес + затемнение */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image: url("forest-bg.jpg"); /* <-- сюда твой фон */
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      transform: scale(1.03);
+      filter: saturate(1.1) contrast(1.05);
+      z-index: -2;
+    }
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(
+          circle at top,
+          rgba(5, 27, 40, 0.65),
+          rgba(1, 8, 12, 0.94)
+        );
+      z-index: -1;
+    }
+
+    /* Основной контейнер (iPhone ширина) */
+    .app {
+      position: relative;
+      height: 100%;
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 18px 14px 26px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-width: none;
+    }
+    .app::-webkit-scrollbar { display: none; }
+
+    .status-spacer {
+      height: env(safe-area-inset-top, 12px);
+    }
+
+    /* Верхняя карточка с названием приложения */
+    .card-header {
+      padding: 16px 18px 16px;
+      border-radius: var(--radius-xl);
+      background: linear-gradient(
+          135deg,
+          rgba(46, 74, 97, 0.2),
+          rgba(7, 14, 22, 0.9)
+        );
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--shadow-soft);
+      backdrop-filter: blur(var(--blur));
+      -webkit-backdrop-filter: blur(var(--blur));
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .app-icon {
+      width: 60px;
+      height: 60px;
+      border-radius: 22px;
+      background: radial-gradient(circle at 30% 20%, #ffffffaa, #a4b9c8 35%, #6f8496 70%, #3f4f5d 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow:
+        0 12px 30px rgba(0, 0, 0, 0.7),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+      font-size: 30px;
+    }
+
+    .header-text-block {
+      flex: 1;
+      min-width: 0;
+    }
+    .app-title {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-shadow: 0 0 22px rgba(0, 0, 0, 0.9);
+    }
+    .app-subtitle {
+      margin-top: 3px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Карточка поиска */
+    .card-search {
+      padding: 16px 14px 18px;
+      border-radius: var(--radius-xl);
+      background: radial-gradient(
+          circle at top left,
+          rgba(72, 112, 122, 0.18),
+          rgba(1, 8, 13, 0.92)
+        );
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--shadow-soft);
+      backdrop-filter: blur(var(--blur));
+      -webkit-backdrop-filter: blur(var(--blur));
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .search-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: -4px;
+    }
+    .search-label span.ru {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-left: 6px;
+    }
+
+    .search-row {
+      display: flex;
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .input-shell {
+      flex: 1;
+      position: relative;
+      border-radius: var(--radius-lg);
+      background: linear-gradient(
+          145deg,
+          rgba(240, 248, 255, 0.06),
+          rgba(17, 31, 44, 0.92)
+        );
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+        0 14px 35px rgba(0, 0, 0, 0.65);
+      overflow: hidden;
+    }
+    .input-shell::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(
+          circle at top,
+          rgba(255, 255, 255, 0.12),
+          transparent 60%
+        );
+      opacity: 0.55;
+      pointer-events: none;
+    }
+
+    .search-input {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      border: none;
+      outline: none;
+      padding: 11px 13px;
+      background: transparent;
+      color: var(--text-main);
+      font-size: 14px;
+    }
+    .search-input::placeholder {
+      color: rgba(184, 205, 223, 0.65);
+    }
+
+    .btn-search {
+      width: 108px;
+      border-radius: var(--radius-lg);
+      border: none;
+      background: linear-gradient(135deg, var(--accent), var(--accent-soft));
+      color: #041012;
+      font-size: 15px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      box-shadow:
+        0 16px 32px rgba(0, 0, 0, 0.8),
+        0 0 0 1px rgba(0, 0, 0, 0.3);
+      cursor: pointer;
+    }
+    .btn-search span.icon {
+      font-size: 18px;
+    }
+
+    /* Поставщики */
+    .suppliers-label {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .suppliers-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 2px;
+    }
+
+    .supplier-chip {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px 6px 9px;
+      border-radius: 999px;
+      border: none;
+      font-size: 13px;
+      color: var(--text-secondary);
+      background: linear-gradient(
+          135deg,
+          rgba(16, 32, 44, 0.9),
+          rgba(6, 14, 22, 0.95)
+        );
+      box-shadow:
+        0 8px 20px rgba(0, 0, 0, 0.75),
+        inset 0 0 0 0.8px rgba(255, 255, 255, 0.16);
+      cursor: pointer;
+    }
+
+    .supplier-chip-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(118, 135, 150, 0.8);
+      box-shadow: 0 0 6px rgba(0, 0, 0, 0.8);
+    }
+
+    .supplier-chip.active .supplier-chip-dot {
+      background: #34eb98;
+      box-shadow: 0 0 10px rgba(88, 255, 188, 0.9);
+    }
+    .supplier-chip.active {
+      background: linear-gradient(
+          135deg,
+          rgba(6, 38, 35, 0.9),
+          rgba(11, 66, 57, 0.98)
+        );
+      border-color: rgba(120, 255, 198, 0.5);
+    }
+
+    .btn-clear-suppliers {
+      margin-left: auto;
+      font-size: 12px;
+      border-radius: 999px;
+      border: none;
+      padding: 4px 10px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    /* Карточка результатов */
+    .card-results {
+      padding: 16px 14px 18px;
+      border-radius: var(--radius-xl);
+      background: radial-gradient(
+          circle at top right,
+          rgba(80, 120, 132, 0.16),
+          rgba(2, 9, 14, 0.96)
+        );
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--shadow-soft);
+      backdrop-filter: blur(var(--blur));
+      -webkit-backdrop-filter: blur(var(--blur));
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 180px;
+    }
+
+    .results-header-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .results-title {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+    .results-count {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .btn-export {
+      margin-left: auto;
+      border-radius: 999px;
+      border: none;
+      padding: 7px 12px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      background: linear-gradient(
+          135deg,
+          rgba(21, 39, 55, 0.96),
+          rgba(4, 10, 18, 0.98)
+        );
+      box-shadow:
+        0 8px 20px rgba(0, 0, 0, 0.8),
+        inset 0 0 0 0.8px rgba(255, 255, 255, 0.18);
+      cursor: pointer;
+    }
+
+    .results-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    /* Карточка результата */
+    .result-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 10px;
+      border-radius: 20px;
+      background: linear-gradient(
+          135deg,
+          rgba(18, 31, 44, 0.96),
+          rgba(3, 10, 17, 0.98)
+        );
+      box-shadow:
+        0 12px 28px rgba(0, 0, 0, 0.8),
+        inset 0 0 0 0.8px rgba(255, 255, 255, 0.12);
+    }
+
+    .result-image {
+      flex-shrink: 0;
+      width: 58px;
+      height: 58px;
+      border-radius: 22px;
+      overflow: hidden;
+      background: radial-gradient(circle at 30% 20%, #ffffffaa, #9aaec0 40%, #44556a 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow:
+        0 10px 24px rgba(0, 0, 0, 0.85),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.21);
+    }
+
+    .result-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .result-image-placeholder {
+      width: 32px;
+      height: 20px;
+      border-radius: 8px;
+      background: linear-gradient(
+          90deg,
+          rgba(255, 255, 255, 0.78),
+          rgba(220, 229, 238, 0.9)
+        );
+      position: relative;
+      overflow: hidden;
+    }
+    .result-image-placeholder::before,
+    .result-image-placeholder::after {
+      content: "";
+      position: absolute;
+      left: 4px;
+      right: 4px;
+      height: 3px;
+      border-radius: 4px;
+      background: #5d6c79;
+    }
+    .result-image-placeholder::before { top: 5px; }
+    .result-image-placeholder::after { bottom: 5px; }
+
+    .result-main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .result-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .result-part {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .result-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 2px;
+      font-size: 12px;
+    }
+
+    .supplier-pill {
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(44, 65, 89, 0.96);
+      color: var(--text-secondary);
+      font-size: 12px;
+    }
+
+    .result-source-link {
+      color: #7fd8ff;
+      text-decoration: none;
+      font-size: 12px;
+    }
+
+    .result-price {
+      margin-left: auto;
+      font-size: 13px;
+      color: var(--accent-soft);
+    }
+
+    .empty-text {
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+  </style>
 </head>
 <body>
-  <div class="app-bg"></div>
-  <div class="app-noise"></div>
+  <div class="app">
+    <div class="status-spacer"></div>
 
-  <main class="app-root">
-    <!-- HEADER CARD -->
-    <section class="card card-header">
-      <div class="header-top">
-        <h1 class="app-title">Parts Finder</h1>
-        <p class="app-subtitle">Multi-site search for appliance repair</p>
-      </div>
-      <div class="badge-row">
-        <div class="badge badge-pill">
-          <span class="badge-dot"></span>
-          Liquid Glass · iOS 26
+    <!-- HEADER -->
+    <section class="card-header">
+      <div class="app-icon">🧩</div>
+      <div class="header-text-block">
+        <div class="app-title">Hub Parts</div>
+        <div class="app-subtitle">
+          Быстрый поиск запчастей по модели или Part # (Sears, RC, Amazon и др.)
         </div>
       </div>
     </section>
 
     <!-- SEARCH CARD -->
-    <section class="card card-search">
-      <div class="card-inner">
-        <label class="field-label">Поиск по модели или part #</label>
-        <div class="search-row">
-          <div class="search-input-wrap">
-            <span class="search-icon">🔍</span>
-            <input id="queryInput" type="text"
-                   placeholder="FGIP2468UF0A"
-                   autocomplete="off" />
-          </div>
-          <button id="searchBtn" class="btn-primary">Найти</button>
+    <section class="card-search">
+      <div class="search-label">
+        Поиск по модели или Part #
+        <span class="ru">поиск запчастей</span>
+      </div>
+      <div class="search-row">
+        <div class="input-shell">
+          <input
+            id="searchInput"
+            class="search-input"
+            placeholder="Например: DLE4970W или 5304509451"
+          />
         </div>
+        <button class="btn-search" id="searchBtn" type="button">
+          <span class="icon">🔍</span>
+          <span>Найти</span>
+        </button>
+      </div>
 
-        <div class="field-label-row">
-          <span class="field-label">Поставщики</span>
-          <button id="clearSourcesBtn" class="link-muted" type="button">
-            Снять всё
-          </button>
-        </div>
+      <div class="suppliers-row">
+        <div class="suppliers-label">Поставщики</div>
+        <button class="btn-clear-suppliers" id="clearSuppliers" type="button">
+          Снять всё
+        </button>
+      </div>
 
-        <div id="sourcesList" class="chips-row"></div>
-
-        <p id="statusLine" class="status-line">Готов к поиску.</p>
+      <div class="suppliers-row" id="suppliersRow">
+        <!-- чипсы создаём через JS по списку ниже -->
       </div>
     </section>
 
     <!-- RESULTS CARD -->
-    <section class="card card-results">
-      <div class="card-inner card-results-inner">
-        <div class="results-header">
-          <div>
-            <h2 class="results-title">Результаты</h2>
-            <p id="resultsSubtitle" class="results-subtitle">
-              Пока ничего не найдено
-            </p>
-          </div>
-          <button id="csvBtn" class="btn-outline" type="button" disabled>
-            Экспорт CSV
-          </button>
+    <section class="card-results">
+      <div class="results-header-row">
+        <div>
+          <div class="results-title">Результаты</div>
+          <div class="results-count" id="resultsCount">Найдено: 0</div>
         </div>
+        <button class="btn-export" type="button">Экспорт CSV</button>
+      </div>
 
-        <div id="resultsList" class="results-list"></div>
+      <div class="results-list" id="resultsList"></div>
+      <div class="empty-text" id="emptyText">
+        Введите модель или Part # и нажмите «Найти».
       </div>
     </section>
+  </div>
 
-    <footer class="app-footer">
-      Sequoia / StillFusion · Parts meta-search · PWA · iOS-style Liquid Glass
-    </footer>
-  </main>
+  <script>
+    // ------- настройки поставщиков (имена должны совпадать с backend) -------
+    const SUPPLIERS = [
+      "SearsPartsDirect",
+      "RepairClinic",
+      "ReliableParts",
+      "AppliancePartsPros",
+      "PartSelect",
+      "Encompass",
+      "Marcone",
+      "eBay",
+      "Amazon"
+    ];
 
-  <script src="/app.js" type="module"></script>
+    const suppliersRow = document.getElementById("suppliersRow");
+    const resultsList = document.getElementById("resultsList");
+    const resultsCount = document.getElementById("resultsCount");
+    const emptyText = document.getElementById("emptyText");
+    const searchInput = document.getElementById("searchInput");
+
+    // активные поставщики по умолчанию – все
+    const activeSuppliers = new Set(SUPPLIERS);
+
+    function renderSupplierChips() {
+      suppliersRow.innerHTML = "";
+      SUPPLIERS.forEach((name) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className =
+          "supplier-chip" + (activeSuppliers.has(name) ? " active" : "");
+        btn.dataset.supplier = name;
+        btn.innerHTML = `
+          <span class="supplier-chip-dot"></span>
+          <span>${name}</span>
+        `;
+        btn.addEventListener("click", () => {
+          if (activeSuppliers.has(name)) {
+            activeSuppliers.delete(name);
+          } else {
+            activeSuppliers.add(name);
+          }
+          renderSupplierChips();
+          // тут можно триггерить перезапрос к API
+        });
+        suppliersRow.appendChild(btn);
+      });
+    }
+
+    document
+      .getElementById("clearSuppliers")
+      .addEventListener("click", () => {
+        activeSuppliers.clear();
+        renderSupplierChips();
+      });
+
+    renderSupplierChips();
+
+    // ----------- рендер карточек результатов -----------
+    function renderResults(items) {
+      resultsList.innerHTML = "";
+      if (!items || !items.length) {
+        resultsCount.textContent = "Найдено: 0";
+        emptyText.style.display = "block";
+        return;
+      }
+      emptyText.style.display = "none";
+      resultsCount.textContent = "Найдено: " + items.length;
+
+      items.forEach((it) => {
+        const card = document.createElement("article");
+        card.className = "result-card";
+        const hasImage = !!it.image;
+
+        card.innerHTML = `
+          <div class="result-image">
+            ${
+              hasImage
+                ? `<img src="${it.image}" alt="">`
+                : `<div class="result-image-placeholder"></div>`
+            }
+          </div>
+          <div class="result-main">
+            <div class="result-title">${it.name || it.title || "Без названия"}</div>
+            <div class="result-part">${
+              it.part_number ? `Part #${it.part_number}` : ""
+            }</div>
+            <div class="result-meta">
+              <div class="supplier-pill">${it.supplier || it.source || ""}</div>
+              ${
+                it.url
+                  ? `<a class="result-source-link" href="${it.url}" target="_blank" rel="noopener">Источник</a>`
+                  : ""
+              }
+              ${
+                it.price
+                  ? `<div class="result-price">${it.price} ${
+                      it.currency || ""
+                    }</div>`
+                  : ""
+              }
+            </div>
+          </div>
+        `;
+        resultsList.appendChild(card);
+      });
+    }
+
+    // ----------- ДЕМО: пример данных -----------
+    const demoItems = [
+      {
+        supplier: "SearsPartsDirect",
+        name: "LG dryer",
+        part_number: "DLE4970W",
+        url: "https://www.searspartsdirect.com/model/3rj9h32cul-003204/lg-dle4970w-dryer-parts",
+        image: "",
+        price: "",
+        currency: ""
+      },
+      {
+        supplier: "RepairClinic",
+        name: "Открыть поиск RepairClinic: DLE4970W",
+        part_number: "DLE4970W",
+        url: "https://www.repairclinic.com/Shop-For-Parts?query=DLE4970W",
+        image: "",
+        price: "",
+        currency: ""
+      }
+    ];
+
+    // При первом рендере можно показать пусто или демо:
+    // renderResults(demoItems);
+
+    // ----------- обработчик поиска -----------
+    function handleSearch() {
+      const q = searchInput.value.trim();
+      if (!q) return;
+
+      // здесь вместо demoItems нужно дергать твой backend:
+      // fetch(`/api/search?q=${encodeURIComponent(q)}&suppliers=${...}`)
+      //   .then(r => r.json())
+      //   .then(data => renderResults(data.items));
+
+      renderResults(demoItems); // <--- временно для визуального теста
+    }
+
+    document.getElementById("searchBtn").addEventListener("click", handleSearch);
+    searchInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") handleSearch();
+    });
+  </script>
 </body>
 </html>
