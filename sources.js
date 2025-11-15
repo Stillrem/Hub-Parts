@@ -146,30 +146,59 @@ function rcFromNextData($){
 
 export const sources = [
   /* --- SearsPartsDirect --- */
-  {
-    name: 'SearsPartsDirect',
-    searchUrl: (q)=> `${BASE_SEARS}/search?q=${encodeURIComponent(q)}`,
-    parser: async (html)=>{
-      const $=cheerio.load(html);
-      const out=[];
+{
+  name: 'SearsPartsDirect',
+  searchUrl: (q)=> `${BASE_SEARS}/search?q=${encodeURIComponent(q)}`,
+  parser: async (html, q)=>{
+    const $=cheerio.load(html);
+    let out=[];
 
-      // детали/товары
-      $('.part-card, .product-card, .card, [data-component="product-card"], a[href*="/part/"], a[href*="/product/"]').each((_,el)=>{
+    // детали/товары (страница поиска)
+    $('.part-card, .product-card, .card, [data-component="product-card"], a[href*="/part/"], a[href*="/product/"]').each((_,el)=>{
+      const el$=$(el);
+      const a$=el$.is('a')?el$:el$.find('a[href]').first();
+      const href=a$.attr('href')||'';
+      if(!/\/part\/|\/product\//i.test(href||'')) return;
+
+      const title=first(
+        el$.find('.card-title').text(),
+        el$.find('.product-title').text(),
+        el$.text()
+      );
+      const link=absUrl(href, BASE_SEARS);
+      const image=pickSearsThumb(el$);
+
+      const part_number = pnFromLink(link) || pnText(title);
+
+      out.push({
+        title: t(title),
+        link,
+        image,
+        source:'SearsPartsDirect',
+        part_number
+      });
+    });
+
+    // модели (страница поиска по моделям)
+    if(!out.length){
+      $('.model-card, [data-component="model-card"], .card, .product-card').each((_,el)=>{
         const el$=$(el);
-        const a$=el$.is('a')?el$:el$.find('a[href]').first();
-        const href=a$.attr('href')||'';
-        if(!/\/part\/|\/product\//i.test(href||'')) return;
-
+        let modelHref='';
+        el$.find('a[href]').each((_,a)=>{
+          const h=$(a).attr('href')||'';
+          const txt=t($(a).text()).toLowerCase();
+          if(/\/model\//i.test(h)) modelHref=modelHref||h;
+          if(/shop\s*parts/i.test(txt) && h) modelHref=h;
+        });
+        if(!modelHref) return;
+        const link=absUrl(modelHref, BASE_SEARS);
         const title=first(
-          el$.find('.card-title').text(),
-          el$.find('.product-title').text(),
+          el$.find('.card-title, .product-title, .model-title').text(),
+          el$.attr('aria-label'),
           el$.text()
         );
-        const link=absUrl(href, BASE_SEARS);
         const image=pickSearsThumb(el$);
-
         const part_number = pnFromLink(link) || pnText(title);
-
         out.push({
           title: t(title),
           link,
@@ -179,65 +208,82 @@ export const sources = [
         });
       });
 
-      // модели
+      // любые ссылки /model/
       if(!out.length){
-        $('.model-card, [data-component="model-card"], .card, .product-card').each((_,el)=>{
-          const el$=$(el);
-          let modelHref='';
-          el$.find('a[href]').each((_,a)=>{
-            const h=$(a).attr('href')||'';
-            const txt=t($(a).text()).toLowerCase();
-            if(/\/model\//i.test(h)) modelHref=modelHref||h;
-            if(/shop\s*parts/i.test(txt) && h) modelHref=h;
-          });
-          if(!modelHref) return;
-          const link=absUrl(modelHref, BASE_SEARS);
-          const title=first(
-            el$.find('.card-title, .product-title, .model-title').text(),
-            el$.attr('aria-label'),
-            el$.text()
-          );
-          const image=pickSearsThumb(el$);
+        const seenLinks=new Set();
+        $('a[href*="/model/"]').each((_,a)=>{
+          const h=$(a).attr('href')||'';
+          if(!h || seenLinks.has(h)) return;
+          seenLinks.add(h);
+          const link=absUrl(h, BASE_SEARS);
+          const title=t($(a).text())||link;
           const part_number = pnFromLink(link) || pnText(title);
           out.push({
-            title: t(title),
+            title,
             link,
-            image,
+            image:'',
             source:'SearsPartsDirect',
             part_number
           });
         });
-
-        // любые ссылки /model/
-        if(!out.length){
-          const seen=new Set();
-          $('a[href*="/model/"]').each((_,a)=>{
-            const h=$(a).attr('href')||'';
-            if(!h || seen.has(h)) return;
-            seen.add(h);
-            const link=absUrl(h, BASE_SEARS);
-            const title=t($(a).text())||link;
-            const part_number = pnFromLink(link) || pnText(title);
-            out.push({
-              title,
-              link,
-              image:'',
-              source:'SearsPartsDirect',
-              part_number
-            });
-          });
-        }
       }
-
-      const seen=new Set();
-      return out.filter(x=>{
-        const k=x.link;
-        if(!k||seen.has(k)) return false;
-        seen.add(k);
-        return true;
-      });
     }
-  },
+
+    /* 🔥 Fallback для страницы ОДНОЙ детали (PDP), когда /search?q=... сразу редиректит */
+    if (!out.length) {
+      // Заголовок — то, что показывается как название детали
+      const h1 = first(
+        $('h1').first().text(),
+        $('h2').first().text(),
+        $('meta[property="og:title"]').attr('content'),
+        $('title').text()
+      );
+
+      // Part number: пробуем вытащить из текста страницы + из query
+      const pnCandidates = [
+        pnText(h1),
+        pnText(html),
+        pnText(q||'')
+      ];
+      const part_number = pnCandidates.find(x=>x) || '';
+
+      // Цена (грубо, но лучше чем ничего)
+      const priceText = t(
+        $('span:contains("$")').first().text()
+      );
+
+      // Картинку из ссылки "Image: ..." (если есть)
+      let imgHref = '';
+      $('a').each((_,a)=>{
+        const txt = t($(a).text());
+        if (!imgHref && /^Image:/i.test(txt)) {
+          imgHref = absUrl($(a).attr('href')||'', BASE_SEARS);
+        }
+      });
+
+      // Если вообще видно, что это страница детали (есть Part # и/или заголовок с PN) — добавляем один результат
+      if (h1 || part_number) {
+        out.push({
+          title: h1 || `SearsPartsDirect: ${q}`,
+          link: `${BASE_SEARS}/search?q=${encodeURIComponent(q||'')}`, // при клике сайт сам редиректит на PDP
+          image: imgHref || '',
+          source: 'SearsPartsDirect',
+          part_number,
+          price: priceText || '',
+          currency: priceText.includes('$') ? 'USD' : ''
+        });
+      }
+    }
+
+    const seen=new Set();
+    return out.filter(x=>{
+      const k=x.link;
+      if(!k||seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  }
+},
 
   /* --- RepairClinic --- */
   {
