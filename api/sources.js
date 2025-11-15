@@ -1,5 +1,5 @@
 // api/sources.js
-const cheerio = require('cheerio');
+import * as cheerio from 'cheerio';
 
 const BASE_SEARS  = 'https://www.searspartsdirect.com';
 const BASE_RC     = 'https://www.repairclinic.com';
@@ -11,8 +11,9 @@ const BASE_MAR    = 'https://www.marcone.com';
 const BASE_EBAY   = 'https://www.ebay.com';
 const BASE_AMZ    = 'https://www.amazon.com';
 
-// утилиты
-const t = s => String(s || '').replace(/\s+/g, ' ').trim();
+// УТИЛИТЫ
+const t = (s) => String(s || '').replace(/\s+/g, ' ').trim();
+
 const first = (...vals) => {
   for (const v of vals) {
     const x = t(v);
@@ -21,7 +22,7 @@ const first = (...vals) => {
   return '';
 };
 
-// PN из текста (запасной вариант)
+// PN ИЗ ТЕКСТА (запасной вариант)
 const pnText = (s) => {
   const txt = String(s || '').toUpperCase();
 
@@ -50,19 +51,18 @@ const pnText = (s) => {
   return nonStop[0] || tokens[0];
 };
 
-// PN из URL (Sears, модели и т.п.)
+// PN ИЗ URL (Sears, модели и т.п.)
 const pnFromLink = (url) => {
   const u = String(url || '').toUpperCase();
 
-  // 1) сначала пробуем длинные числовые PN (5304509451)
+  // 1) длинные числовые PN (5304509451)
   let m = u.match(/(?:^|[^\d])(\d{7,})\b/);
   if (m) return m[1];
 
-  // 2) затем берём последний сегмент пути, типа "LG-DLE4970W-DRYER-PARTS"
+  // 2) последний сегмент пути: "LG-DLE4970W-DRYER-PARTS"
   const last = u.split('?')[0].split('/').pop() || '';
   const tokens = last.split(/[^A-Z0-9]+/).filter(Boolean);
 
-  // приоритет — токен с цифрой и не из стоп-списка
   const withDigit = tokens.filter(x => /\d/.test(x));
   if (withDigit.length) return withDigit[0];
 
