@@ -1,4 +1,4 @@
-// functions/search.js
+// api/search.js
 const { sources } = require('./lib/sources');
 
 // В Node 18+ fetch глобальный. Если у тебя старая версия – в проекте должен быть node-fetch.
