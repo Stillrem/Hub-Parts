@@ -232,29 +232,73 @@ function rcFromNextData($) {
 
 const sources = [
   /* SearsPartsDirect */
-  {
-    name: 'SearsPartsDirect',
-    searchUrl: q => `${BASE_SEARS}/search?q=${encodeURIComponent(q)}`,
-    parser: async html => {
-      const $ = cheerio.load(html);
-      const out = [];
+{
+  name: 'SearsPartsDirect',
+  searchUrl: q => `${BASE_SEARS}/search?q=${encodeURIComponent(q)}`,
+  parser: async (html, q) => {
+    const $ = cheerio.load(html);
+    let out = [];
 
-      $('.part-card, .product-card, .card, [data-component="product-card"], a[href*="/part/"], a[href*="/product/"]').each(
-        (_, el
-        ) => {
+    // Модель, которую ввёл пользователь (нормализуем)
+    const qModel = pnText(q || '');
+
+    // ---------- ДЕТАЛИ / ТОВАРЫ ----------
+    $('.part-card, .product-card, .card, [data-component="product-card"], a[href*="/part/"], a[href*="/product/"]').each(
+      (_, el) => {
+        const el$ = $(el);
+        const a$  = el$.is('a') ? el$ : el$.find('a[href]').first();
+        const href = a$.attr('href') || '';
+        if (!/\/part\/|\/product\//i.test(href || '')) return;
+
+        const title = first(
+          el$.find('.card-title').text(),
+          el$.find('.product-title').text(),
+          el$.text()
+        );
+
+        const link  = absUrl(href, BASE_SEARS);
+        const image = pickSearsThumb(el$);
+
+        // Модель, которую мы видим в заголовке/ссылке
+        const modelFromText = pnText(title + ' ' + link);
+        const part_number   = modelFromText || pnFromLink(link) || pnText(title);
+
+        out.push({
+          title: t(title),
+          link,
+          image,
+          source: 'SearsPartsDirect',
+          part_number
+        });
+      }
+    );
+
+    // ---------- МОДЕЛИ ----------
+    if (!out.length) {
+      $('.model-card, [data-component="model-card"], .card, .product-card').each(
+        (_, el) => {
           const el$ = $(el);
-          const a$ = el$.is('a') ? el$ : el$.find('a[href]').first();
-          const href = a$.attr('href') || '';
-          if (!/\/part\/|\/product\//i.test(href || '')) return;
+          let modelHref = '';
 
+          el$.find('a[href]').each((_, a) => {
+            const h   = $(a).attr('href') || '';
+            const txt = t($(a).text()).toLowerCase();
+            if (/\/model\//i.test(h)) modelHref = modelHref || h;
+            if (/shop\s*parts/i.test(txt) && h) modelHref = h;
+          });
+
+          if (!modelHref) return;
+
+          const link = absUrl(modelHref, BASE_SEARS);
           const title = first(
-            el$.find('.card-title').text(),
-            el$.find('.product-title').text(),
+            el$.find('.card-title, .product-title, .model-title').text(),
+            el$.attr('aria-label'),
             el$.text()
           );
-          const link = absUrl(href, BASE_SEARS);
           const image = pickSearsThumb(el$);
-          const part_number = pnFromLink(link) || pnText(title);
+
+          const modelFromText = pnText(title + ' ' + link);
+          const part_number   = modelFromText || pnFromLink(link) || pnText(title);
 
           out.push({
             title: t(title),
@@ -266,68 +310,65 @@ const sources = [
         }
       );
 
+      // запасной вариант: любые ссылки /model/
       if (!out.length) {
-        $('.model-card, [data-component="model-card"], .card, .product-card').each(
-          (_, el
-          ) => {
-            const el$ = $(el);
-            let modelHref = '';
-            el$.find('a[href]').each((_, a) => {
-              const h = $(a).attr('href') || '';
-              const txt = t($(a).text()).toLowerCase();
-              if (/\/model\//i.test(h)) modelHref = modelHref || h;
-              if (/shop\s*parts/i.test(txt) && h) modelHref = h;
-            });
-            if (!modelHref) return;
-            const link = absUrl(modelHref, BASE_SEARS);
-            const title = first(
-              el$
-                .find('.card-title, .product-title, .model-title')
-                .text(),
-              el$.attr('aria-label'),
-              el$.text()
-            );
-            const image = pickSearsThumb(el$);
-            const part_number = pnFromLink(link) || pnText(title);
-            out.push({
-              title: t(title),
-              link,
-              image,
-              source: 'SearsPartsDirect',
-              part_number
-            });
-          }
-        );
+        const seenLinks = new Set();
+        $('a[href*="/model/"]').each((_, a) => {
+          const h = $(a).attr('href') || '';
+          if (!h || seenLinks.has(h)) return;
+          seenLinks.add(h);
 
-        if (!out.length) {
-          const seen = new Set();
-          $('a[href*="/model/"]').each((_, a) => {
-            const h = $(a).attr('href') || '';
-            if (!h || seen.has(h)) return;
-            seen.add(h);
-            const link = absUrl(h, BASE_SEARS);
-            const title = t($(a).text()) || link;
-            const part_number = pnFromLink(link) || pnText(title);
-            out.push({
-              title,
-              link,
-              image: '',
-              source: 'SearsPartsDirect',
-              part_number
-            });
+          const link  = absUrl(h, BASE_SEARS);
+          const title = t($(a).text()) || link;
+
+          const modelFromText = pnText(title + ' ' + link);
+          const part_number   = modelFromText || pnFromLink(link) || pnText(title);
+
+          out.push({
+            title,
+            link,
+            image: '',
+            source: 'SearsPartsDirect',
+            part_number
           });
-        }
+        });
       }
-
-      const seen = new Set();
-      return out.filter(x => {
-        const k = x.link;
-        if (!k || seen.has(k)) return false;
-        seen.add(k);
-        return true;
-      });
     }
-  },
+
+    // ---------- УДАЛЯЕМ ДУБЛИКАТЫ ----------
+    const seen = new Set();
+    out = out.filter(x => {
+      const k = x.link;
+      if (!k || seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+
+    // ---------- ЖЁСТКАЯ ФИЛЬТРАЦИЯ ПО МОДЕЛИ ----------
+    if (qModel) {
+      const strict = out.filter(item => {
+        const m = pnText(
+          (item.title || '') +
+          ' ' +
+          (item.link || '') +
+          ' ' +
+          (item.part_number || '')
+        );
+        return m === qModel;
+      });
+
+      // если что-то нашли с точным совпадением — оставляем только их
+      if (strict.length) {
+        strict.forEach(item => {
+          item.part_number = qModel; // красивый вывод "Part #DLE4970W"
+        });
+        out = strict;
+      }
+    }
+
+    return out;
+  }
+},
 
   /* RepairClinic */
   {
