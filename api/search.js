@@ -1,6 +1,6 @@
 // api/search.js  (для Vercel / аналог для Netlify)
 
-import { sources } from './lib/sources.js';
+import { sources } from '../sources.js';
 
 export default async function handler(req, res) {
   const { q } = req.query || {};
