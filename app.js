@@ -1,5 +1,5 @@
 // app.js
-const API_URL = '/api/search';
+const API_URL = '/api/search'; // ВАЖНО: именно так на Vercel
 
 const SOURCE_NAMES = [
   'SearsPartsDirect',
@@ -13,18 +13,6 @@ const SOURCE_NAMES = [
   'Amazon'
 ];
 
-const srcLabels = {
-  SearsPartsDirect: 'SearsPartsDirect',
-  RepairClinic: 'RepairClinic',
-  ReliableParts: 'ReliableParts',
-  AppliancePartsPros: 'AppliancePartsPros',
-  PartSelect: 'PartSelect',
-  Encompass: 'Encompass',
-  Marcone: 'Marcone',
-  eBay: 'eBay',
-  Amazon: 'Amazon'
-};
-
 const queryInput = document.getElementById('queryInput');
 const searchBtn = document.getElementById('searchBtn');
 const statusLine = document.getElementById('statusLine');
@@ -37,7 +25,7 @@ const clearSourcesBtn = document.getElementById('clearSourcesBtn');
 let activeSources = new Set(SOURCE_NAMES);
 let lastItems = [];
 
-/* --- build chips --- */
+/* build chips */
 
 function buildSourceChips() {
   SOURCE_NAMES.forEach(name => {
@@ -47,7 +35,7 @@ function buildSourceChips() {
     chip.dataset.source = name;
     chip.innerHTML = `
       <span class="chip-dot"></span>
-      <span>${srcLabels[name] || name}</span>
+      <span>${name}</span>
     `;
     chip.addEventListener('click', () => {
       if (activeSources.has(name)) {
@@ -68,10 +56,7 @@ function buildSourceChips() {
     sourcesListEl.appendChild(chip);
   });
 }
-
 buildSourceChips();
-
-/* clear all sources */
 
 clearSourcesBtn.addEventListener('click', () => {
   activeSources.clear();
@@ -80,7 +65,7 @@ clearSourcesBtn.addEventListener('click', () => {
   statusLine.classList.add('status-error');
 });
 
-/* search handler */
+/* search */
 
 async function performSearch() {
   const q = queryInput.value.trim();
@@ -119,7 +104,6 @@ async function performSearch() {
     if (!lastItems.length) {
       resultsSubtitle.textContent = 'Ничего не найдено.';
       statusLine.textContent = 'Поиск завершён, результатов нет.';
-      csvBtn.disabled = true;
       return;
     }
 
@@ -129,7 +113,7 @@ async function performSearch() {
     csvBtn.disabled = false;
   } catch (err) {
     console.error('Search error', err);
-    statusLine.textContent = 'Ошибка при запросе. Открой консоль DevTools.';
+    statusLine.textContent = 'Ошибка при запросе. См. вкладку Network / Console.';
     statusLine.classList.add('status-error');
     resultsSubtitle.textContent = 'Ошибка при поиске.';
   } finally {
@@ -138,7 +122,6 @@ async function performSearch() {
 }
 
 searchBtn.addEventListener('click', performSearch);
-
 queryInput.addEventListener('keydown', e => {
   if (e.key === 'Enter') {
     e.preventDefault();
@@ -146,7 +129,7 @@ queryInput.addEventListener('keydown', e => {
   }
 });
 
-/* results rendering */
+/* render */
 
 function renderResults(items) {
   resultsList.innerHTML = '';
@@ -221,7 +204,7 @@ function renderResults(items) {
   }
 }
 
-/* CSV export */
+/* CSV */
 
 csvBtn.addEventListener('click', () => {
   if (!lastItems.length) return;
@@ -263,7 +246,7 @@ csvBtn.addEventListener('click', () => {
   URL.revokeObjectURL(url);
 });
 
-/* PWA: service worker */
+/* PWA */
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
