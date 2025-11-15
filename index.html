@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Parts Hub — Поиск запчастей</title>
+
+  <link rel="stylesheet" href="/styles.css">
+
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#05060a">
+
+  <!-- iOS PWA -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Parts Hub">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+</head>
+<body>
+  <div class="bg-blur-layer"></div>
+
+  <main class="app-shell">
+    <header class="app-header glass">
+      <div class="app-title-row">
+        <div>
+          <h1>Parts Hub</h1>
+          <p class="subtitle">Поиск запчастей для ремонта техники</p>
+        </div>
+        <div class="badge-ios">iOS-style • Liquid Glass</div>
+      </div>
+
+      <form id="searchForm" class="search-form">
+        <div class="search-main-row">
+          <div class="input-wrap">
+            <label for="q">Модель или парт-номер</label>
+            <div class="input-with-icon">
+              <span class="icon">🔍</span>
+              <input id="q" type="text"
+                     placeholder="Например: 5304509451 или NX58F5500SS"
+                     autocomplete="off">
+            </div>
+          </div>
+
+          <button type="submit" class="btn primary">
+            Искать
+          </button>
+        </div>
+
+        <div class="search-filters-row">
+          <label class="inline">
+            Поставщик:
+            <select id="supplier">
+              <option value="">Все</option>
+              <option value="SearsPartsDirect">SearsPartsDirect</option>
+              <option value="RepairClinic">RepairClinic</option>
+              <option value="ReliableParts">ReliableParts</option>
+              <option value="AppliancePartsPros">AppliancePartsPros</option>
+              <option value="PartSelect">PartSelect</option>
+              <option value="Encompass">Encompass</option>
+              <option value="Marcone">Marcone</option>
+              <option value="eBay">eBay</option>
+              <option value="Amazon">Amazon</option>
+              <option value="Walmart">Walmart</option>
+            </select>
+          </label>
+
+          <label class="inline chk">
+            <input type="checkbox" id="onlyOEM">
+            <span>Только OEM</span>
+          </label>
+
+          <label class="inline chk">
+            <input type="checkbox" id="onlyInStock">
+            <span>Только в наличии</span>
+          </label>
+
+          <button type="button" id="exportBtn" class="btn ghost">
+            ⬇️ CSV
+          </button>
+        </div>
+      </form>
+    </header>
+
+    <section id="equivBox" class="equiv-box glass hidden">
+      <div class="equiv-title">Эквиваленты / аналоги:</div>
+      <div id="equivList" class="chips-row"></div>
+    </section>
+
+    <section class="results-wrapper glass">
+      <div id="resultsGrid" class="grid"></div>
+    </section>
+  </main>
+
+  <template id="cardTmpl">
+    <article class="card glass">
+      <div class="thumb">
+        <img loading="lazy" alt="part image">
+      </div>
+      <div class="body">
+        <div class="title-row">
+          <div class="title"></div>
+          <div class="price"></div>
+        </div>
+        <div class="meta"></div>
+        <div class="compat"></div>
+        <div class="chips"></div>
+        <div class="links"></div>
+      </div>
+    </article>
+  </template>
+
+  <script src="/app.js"></script>
+
+  <!-- Service Worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(() => console.log('Service Worker зарегистрирован'))
+          .catch(err => console.log('Ошибка регистрации SW:', err));
+      });
+    }
+  </script>
+</body>
+</html>
