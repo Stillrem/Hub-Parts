@@ -33,7 +33,7 @@ self.addEventListener('fetch', event => {
   if (request.method !== 'GET') return;
   if (request.url.includes('/api/')) return; // API не кешируем
 
-  event.respondWith(
-    caches.match(request).then(cached => cached || fetch(request))
-  );
+  self.addEventListener('fetch', event => {
+  // просто пропускать всё
+  return; 
 });
