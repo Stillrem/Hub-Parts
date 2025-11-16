@@ -545,108 +545,162 @@
   </div>
 
   <script>
-    // ------- настройки поставщиков (имена должны совпадать с backend) -------
-    const SUPPLIERS = [
-      "SearsPartsDirect",
-      "RepairClinic",
-      "ReliableParts",
-      "AppliancePartsPros",
-      "PartSelect",
-      "Encompass",
-      "Marcone",
-      "eBay",
-      "Amazon"
-    ];
+    <script>
+  // ------- настройки поставщиков (имена должны совпадать с backend) -------
+  const SUPPLIERS = [
+    "SearsPartsDirect",
+    "RepairClinic",
+    "ReliableParts",
+    "AppliancePartsPros",
+    "PartSelect",
+    "Encompass",
+    "Marcone",
+    "eBay",
+    "Amazon"
+  ];
 
-    const suppliersRow = document.getElementById("suppliersRow");
-    const resultsList = document.getElementById("resultsList");
-    const resultsCount = document.getElementById("resultsCount");
-    const emptyText = document.getElementById("emptyText");
-    const searchInput = document.getElementById("searchInput");
+  const suppliersRow = document.getElementById("suppliersRow");
+  const resultsList = document.getElementById("resultsList");
+  const resultsCount = document.getElementById("resultsCount");
+  const emptyText = document.getElementById("emptyText");
+  const searchInput = document.getElementById("searchInput");
+  const searchBtn = document.getElementById("searchBtn");
 
-    // активные поставщики по умолчанию – все
-    const activeSuppliers = new Set(SUPPLIERS);
+  // активные поставщики по умолчанию – все
+  const activeSuppliers = new Set(SUPPLIERS);
 
-    function renderSupplierChips() {
-      suppliersRow.innerHTML = "";
-      SUPPLIERS.forEach((name) => {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className =
-          "supplier-chip" + (activeSuppliers.has(name) ? " active" : "");
-        btn.dataset.supplier = name;
-        btn.innerHTML = `
-          <span class="supplier-chip-dot"></span>
-          <span>${name}</span>
-        `;
-        btn.addEventListener("click", () => {
-          if (activeSuppliers.has(name)) {
-            activeSuppliers.delete(name);
-          } else {
-            activeSuppliers.add(name);
-          }
-          renderSupplierChips();
-          // тут можно триггерить перезапрос к API
-        });
-        suppliersRow.appendChild(btn);
-      });
-    }
-
-    document
-      .getElementById("clearSuppliers")
-      .addEventListener("click", () => {
-        activeSuppliers.clear();
+  function renderSupplierChips() {
+    suppliersRow.innerHTML = "";
+    SUPPLIERS.forEach((name) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className =
+        "supplier-chip" + (activeSuppliers.has(name) ? " active" : "");
+      btn.dataset.supplier = name;
+      btn.innerHTML = `
+        <span class="supplier-chip-dot"></span>
+        <span>${name}</span>
+      `;
+      btn.addEventListener("click", () => {
+        if (activeSuppliers.has(name)) {
+          activeSuppliers.delete(name);
+        } else {
+          activeSuppliers.add(name);
+        }
         renderSupplierChips();
+        // опционально: можно сразу перезапускать поиск, если есть запрос
+        if (searchInput.value.trim()) {
+          doSearch();
+        }
       });
+      suppliersRow.appendChild(btn);
+    });
+  }
 
-    renderSupplierChips();
-
-    // ----------- рендер карточек результатов -----------
-    function renderResults(items) {
-      resultsList.innerHTML = "";
-      if (!items || !items.length) {
-        resultsCount.textContent = "Найдено: 0";
-        emptyText.style.display = "block";
-        return;
+  document
+    .getElementById("clearSuppliers")
+    .addEventListener("click", () => {
+      activeSuppliers.clear();
+      renderSupplierChips();
+      if (searchInput.value.trim()) {
+        doSearch();
       }
-      emptyText.style.display = "none";
-      resultsCount.textContent = "Найдено: " + items.length;
+    });
 
-      items.forEach((it) => {
-        const card = document.createElement("article");
-        card.className = "result-card";
-        const hasImage = !!it.image;
+  renderSupplierChips();
 
-        card.innerHTML = `
-          <div class="result-image">
+  // ----------- рендер карточек результатов -----------
+  function renderResults(items) {
+    resultsList.innerHTML = "";
+    if (!items || !items.length) {
+      resultsCount.textContent = "Найдено: 0";
+      emptyText.style.display = "block";
+      return;
+    }
+    emptyText.style.display = "none";
+    resultsCount.textContent = "Найдено: " + items.length;
+
+    items.forEach((it) => {
+      const card = document.createElement("article");
+      card.className = "result-card";
+      const hasImage = !!it.image;
+
+      card.innerHTML = `
+        <div class="result-image">
+          ${
+            hasImage
+              ? `<img src="${it.image}" alt="">`
+              : `<div class="result-image-placeholder"></div>`
+          }
+        </div>
+        <div class="result-main">
+          <div class="result-title">${it.name || it.title || "Без названия"}</div>
+          <div class="result-part">${
+            it.part_number ? `Part #${it.part_number}` : ""
+          }</div>
+          <div class="result-meta">
+            <div class="supplier-pill">${it.supplier || it.source || ""}</div>
             ${
-              hasImage
-                ? `<img src="${it.image}" alt="">`
-                : `<div class="result-image-placeholder"></div>`
+              it.link
+                ? `<a class="result-source-link" href="${it.link}" target="_blank" rel="noopener">Источник</a>`
+                : ""
+            }
+            ${
+              it.price
+                ? `<div class="result-price">${it.price} ${it.currency || ""}</div>`
+                : ""
             }
           </div>
-          <div class="result-main">
-            <div class="result-title">${it.name || it.title || "Без названия"}</div>
-            <div class="result-part">${
-              it.part_number ? `Part #${it.part_number}` : ""
-            }</div>
-            <div class="result-meta">
-              <div class="supplier-pill">${it.supplier || it.source || ""}</div>
-              ${
-                it.url
-                  ? `<a class="result-source-link" href="${it.url}" target="_blank" rel="noopener">Источник</a>`
-                  : ""
-              }
-              ${
-                it.price
-                  ? `<div class="result-price">${it.price} ${
-                      it.currency || ""
-                    }</div>`
-                  : ""
-              }
-            </div>
-          </div>
-        `;
-        resultsList.appendChild(card);
-      });
-    };
+        </div>
+      `;
+      resultsList.appendChild(card);
+    });
+  }
+
+  // ---------- вызов backend /api/search ----------
+  async function doSearch() {
+    const q = searchInput.value.trim();
+    if (!q) {
+      renderResults([]);
+      return;
+    }
+
+    // Формируем строку поставщиков
+    const suppliersParam = [...activeSuppliers].join(",");
+
+    resultsCount.textContent = "Поиск...";
+    emptyText.style.display = "none";
+    resultsList.innerHTML = "";
+
+    try {
+      const params = new URLSearchParams();
+      params.set("q", q);
+      if (suppliersParam) params.set("suppliers", suppliersParam);
+
+      // путь подправь под свой backend
+      const res = await fetch(`/api/search?${params.toString()}`);
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+
+      // предполагаем, что backend отдаёт массив
+      renderResults(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error(e);
+      resultsCount.textContent = "Ошибка";
+      emptyText.textContent = "Ошибка при поиске. Попробуйте ещё раз.";
+      emptyText.style.display = "block";
+    }
+  }
+
+  // клик по кнопке "Найти"
+  searchBtn.addEventListener("click", () => {
+    doSearch();
+  });
+
+  // Enter в поле поиска
+  searchInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      doSearch();
+    }
+  });
+</script>
