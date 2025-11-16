@@ -2,10 +2,10 @@
 const CACHE_NAME = 'parts-finder-v2';
 const ASSETS = [
   '/',
-  '/index.html',
-  '/styles.css',
-  '/app.js',
-  '/manifest.webmanifest'
+  '/',
+  '/',
+  '/',
+  '/'
 ];
 
 self.addEventListener('install', event => {
