@@ -1,4 +1,3 @@
-// app.js
 const API_URL = '/api/search'; // на Vercel именно так
 
 const SOURCE_NAMES = [
@@ -13,8 +12,8 @@ const SOURCE_NAMES = [
   'Amazon'
 ];
 
-const queryInput = document.getElementById('queryInput');
-const searchBtn = document.get
+const queryInput = document.getElementById('searchInput');   // ⬅️ совпадает с HTML
+const searchBtn  = document.getElementById('searchBtn');     // ⬅️ исправлено
 const statusLine = document.getElementById('statusLine');
 const resultsList = document.getElementById('resultsList');
 const resultsSubtitle = document.getElementById('resultsSubtitle');
@@ -91,16 +90,19 @@ async function performSearch() {
   const srcParam = Array.from(activeSources).join(',');
 
   try {
-    const url = `${API_URL}?q=${encodeURIComponent(q)}&sources=${encodeURIComponent(
-      srcParam
-    )}`;
+    const url = `${API_URL}?q=${encodeURIComponent(q)}&suppliers=${encodeURIComponent(srcParam)}`; // ⬅️ имя параметра
     const res = await fetch(url);
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}`);
     }
     const data = await res.json();
 
-    lastItems = Array.isArray(data.items) ? data.items : [];
+    lastItems = Array.isArray(data)
+      ? data
+      : Array.isArray(data.items)
+      ? data.items
+      : [];
+
     if (!lastItems.length) {
       resultsSubtitle.textContent = 'Ничего не найдено.';
       statusLine.textContent = 'Поиск завершён, результатов нет.';
@@ -204,7 +206,7 @@ function renderResults(items) {
   }
 }
 
-/* CSV */
+/* CSV — как у тебя, оставил без изменений */
 
 csvBtn.addEventListener('click', () => {
   if (!lastItems.length) return;
