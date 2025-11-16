@@ -650,22 +650,3 @@
         resultsList.appendChild(card);
       });
     }
-
-    // ----------- обработчик поиска -----------
-    function handleSearch() {
-      const q = searchInput.value.trim();
-      if (!q) return;
-
-      // здесь вместо demoItems нужно дергать твой backend:
-      // fetch(`/api/search?q=${encodeURIComponent(q)}&suppliers=${...}`)
-      //   .then(r => r.json())
-      //   .then(data => renderResults(data.items));
-    }
-
-    document.getElementById("searchBtn").addEventListener("click", handleSearch);
-    searchInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") handleSearch();
-    });
-  </script>
-</body>
-</html>
