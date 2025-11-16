@@ -546,7 +546,9 @@
 
   <script>
     <script>
-  // ------- настройки поставщиков (имена должны совпадать с backend) -------
+  const API_URL = '/api/search';
+
+  // имена должны совпадать с backend (sources.js)
   const SUPPLIERS = [
     "SearsPartsDirect",
     "RepairClinic",
@@ -559,16 +561,18 @@
     "Amazon"
   ];
 
-  const suppliersRow = document.getElementById("suppliersRow");
-  const resultsList = document.getElementById("resultsList");
-  const resultsCount = document.getElementById("resultsCount");
-  const emptyText = document.getElementById("emptyText");
-  const searchInput = document.getElementById("searchInput");
-  const searchBtn = document.getElementById("searchBtn");
+  const suppliersRow   = document.getElementById("suppliersRow");
+  const resultsList    = document.getElementById("resultsList");
+  const resultsCount   = document.getElementById("resultsCount");
+  const emptyText      = document.getElementById("emptyText");
+  const searchInput    = document.getElementById("searchInput");
+  const searchBtn      = document.getElementById("searchBtn");
+  const clearSuppliers = document.getElementById("clearSuppliers");
 
-  // активные поставщики по умолчанию – все
+  // по умолчанию все источники включены
   const activeSuppliers = new Set(SUPPLIERS);
 
+  // ----- чипы поставщиков -----
   function renderSupplierChips() {
     suppliersRow.innerHTML = "";
     SUPPLIERS.forEach((name) => {
@@ -588,7 +592,8 @@
           activeSuppliers.add(name);
         }
         renderSupplierChips();
-        // опционально: можно сразу перезапускать поиск, если есть запрос
+
+        // если уже введён запрос – можно сразу перезапустить поиск
         if (searchInput.value.trim()) {
           doSearch();
         }
@@ -597,32 +602,36 @@
     });
   }
 
-  document
-    .getElementById("clearSuppliers")
-    .addEventListener("click", () => {
-      activeSuppliers.clear();
-      renderSupplierChips();
-      if (searchInput.value.trim()) {
-        doSearch();
-      }
-    });
+  clearSuppliers.addEventListener("click", () => {
+    activeSuppliers.clear();
+    renderSupplierChips();
+    // чистим результаты, чтобы было понятно, что всё снято
+    resultsList.innerHTML = "";
+    resultsCount.textContent = "Найдено: 0";
+    emptyText.style.display = "block";
+    emptyText.textContent = "Все поставщики сняты. Выберите хотя бы один.";
+  });
 
   renderSupplierChips();
 
-  // ----------- рендер карточек результатов -----------
+  // ----- рендер результатов -----
   function renderResults(items) {
     resultsList.innerHTML = "";
+
     if (!items || !items.length) {
       resultsCount.textContent = "Найдено: 0";
       emptyText.style.display = "block";
+      emptyText.textContent = "Ничего не найдено.";
       return;
     }
+
     emptyText.style.display = "none";
     resultsCount.textContent = "Найдено: " + items.length;
 
     items.forEach((it) => {
       const card = document.createElement("article");
       card.className = "result-card";
+
       const hasImage = !!it.image;
 
       card.innerHTML = `
@@ -634,12 +643,12 @@
           }
         </div>
         <div class="result-main">
-          <div class="result-title">${it.name || it.title || "Без названия"}</div>
+          <div class="result-title">${it.title || it.name || "Без названия"}</div>
           <div class="result-part">${
             it.part_number ? `Part #${it.part_number}` : ""
           }</div>
           <div class="result-meta">
-            <div class="supplier-pill">${it.supplier || it.source || ""}</div>
+            <div class="supplier-pill">${it.source || it.supplier || ""}</div>
             ${
               it.link
                 ? `<a class="result-source-link" href="${it.link}" target="_blank" rel="noopener">Источник</a>`
@@ -657,49 +666,67 @@
     });
   }
 
-  // ---------- вызов backend /api/search ----------
+  // ----- запрос к backend -----
   async function doSearch() {
     const q = searchInput.value.trim();
     if (!q) {
-      renderResults([]);
+      emptyText.style.display = "block";
+      emptyText.textContent = "Введите модель или Part #.";
+      resultsList.innerHTML = "";
+      resultsCount.textContent = "Найдено: 0";
       return;
     }
 
-    // Формируем строку поставщиков
-    const suppliersParam = [...activeSuppliers].join(",");
+    if (!activeSuppliers.size) {
+      emptyText.style.display = "block";
+      emptyText.textContent = "Выберите хотя бы одного поставщика.";
+      resultsList.innerHTML = "";
+      resultsCount.textContent = "Найдено: 0";
+      return;
+    }
 
-    resultsCount.textContent = "Поиск...";
-    emptyText.style.display = "none";
+    const suppliersParam = [...activeSuppliers].join(",");
     resultsList.innerHTML = "";
+    resultsCount.textContent = "Поиск…";
+    emptyText.style.display = "none";
+    searchBtn.disabled = true;
 
     try {
       const params = new URLSearchParams();
       params.set("q", q);
-      if (suppliersParam) params.set("suppliers", suppliersParam);
+      params.set("sources", suppliersParam); // ← совпадает с req.query.sources в /api/search
 
-      // путь подправь под свой backend
-      const res = await fetch(`/api/search?${params.toString()}`);
+      const res = await fetch(`${API_URL}?${params.toString()}`);
       if (!res.ok) throw new Error("HTTP " + res.status);
-      const data = await res.json();
 
-      // предполагаем, что backend отдаёт массив
-      renderResults(Array.isArray(data) ? data : []);
-    } catch (e) {
-      console.error(e);
+      const data = await res.json();
+      const items = Array.isArray(data.items)
+        ? data.items
+        : Array.isArray(data)
+        ? data
+        : [];
+
+      renderResults(items);
+    } catch (err) {
+      console.error("Search error", err);
+      resultsList.innerHTML = "";
       resultsCount.textContent = "Ошибка";
-      emptyText.textContent = "Ошибка при поиске. Попробуйте ещё раз.";
       emptyText.style.display = "block";
+      emptyText.textContent = "Ошибка при запросе. Проверьте Console / Network.";
+    } finally {
+      searchBtn.disabled = false;
     }
   }
 
-  // клик по кнопке "Найти"
+  // клик по "Найти"
   searchBtn.addEventListener("click", () => {
     doSearch();
   });
 
-  // Enter в поле поиска
+  // Enter в поле
   searchInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
+      e.preventDefault();
       doSearch();
     }
   });
