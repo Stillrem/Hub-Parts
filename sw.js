@@ -1,11 +1,11 @@
 // sw.js
-const CACHE_NAME = 'parts-finder-v2';
+const CACHE_NAME = 'parts-finder-v3';
 const ASSETS = [
   '/',
   '/index.html',
   '/app.js',
   '/styles.css',
-  '/'
+  '/manifest.webmanifest'
 ];
 
 self.addEventListener('install', event => {
