@@ -2,9 +2,9 @@
 const CACHE_NAME = 'parts-finder-v2';
 const ASSETS = [
   '/',
-  '/',
-  '/',
-  '/',
+  '/index.html',
+  '/app.js',
+  '/styles.css',
   '/'
 ];
 
