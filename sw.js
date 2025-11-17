@@ -1,5 +1,5 @@
 // sw.js
-const CACHE_NAME = 'parts-finder-v3';
+const CACHE_NAME = 'parts-finder-v4';
 const ASSETS = [
   '/',
   '/index.html',
